@@ -1,9 +1,6 @@
 package br.com.orientefarma.integradorol.exceptions
 
-import br.com.orientefarma.integradorol.commons.RetornoItemPedidoEnum
+import br.com.orientefarma.integradorol.model.pojo.ItemPedidoPojo
 
 @Suppress("unused")
-class EnviarItemPedidoCentralException(val mensagem: String? = "Sem mensagem", val retornoOL: RetornoItemPedidoEnum):
-    Exception() {
-
-}
+class EnviarItemPedidoCentralException(val itemPedidoPojo: ItemPedidoPojo): Exception()

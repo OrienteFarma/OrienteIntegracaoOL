@@ -3,7 +3,10 @@ package br.com.orientefarma.integradorol.dao.vo
 import br.com.lugh.dao.WrapperVO
 import br.com.lugh.dsl.metadados.pojo.Delegate
 import br.com.lugh.dsl.metadados.pojo.DelegateNotNull
+import br.com.lugh.dsl.metadados.pojo.EnumDelegate
 import br.com.lugh.dsl.metadados.pojo.Pojo
+import br.com.orientefarma.integradorol.commons.RetornoPedidoEnum
+import br.com.orientefarma.integradorol.commons.StatusPedidoOLEnum
 import java.math.BigDecimal
 import java.sql.Timestamp
 
@@ -20,8 +23,8 @@ class PedidoOLVO(vo: WrapperVO) : Pojo(vo) {
     var cond: String? by Delegate()
     var codPrz: BigDecimal? by Delegate()
     var retSkw: String? by Delegate()
-    var codRetSkw: Int? by Delegate()
-    var status: String? by Delegate()
+    var codRetSkw: RetornoPedidoEnum? by EnumDelegate(RetornoPedidoEnum::class.java)
+    var status: StatusPedidoOLEnum? by EnumDelegate(StatusPedidoOLEnum::class.java)
     var nuNota: String? by Delegate()
     var nuPedCli: String? by Delegate()
     var dhInclusao: Timestamp? by Delegate()

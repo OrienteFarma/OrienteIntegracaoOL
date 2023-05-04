@@ -18,7 +18,7 @@ class ItemPedidoOLVO(vo: WrapperVO) : Pojo(vo) {
     var prodDesc: BigDecimal? by Delegate()
     var codProdInd: String? by Delegate()
     var status: String? by Delegate()
-    var codRetSkw: String? by Delegate()
+    var codRetSkw: Int? by Delegate()
     var retSkw: String? by Delegate()
     var sequenciaArquivo: Int? by Delegate()
     var codProd: Int? by Delegate()

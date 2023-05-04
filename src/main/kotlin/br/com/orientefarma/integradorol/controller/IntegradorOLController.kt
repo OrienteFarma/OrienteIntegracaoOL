@@ -14,6 +14,7 @@ class IntegradorOLController {
                 LogOL.info("Iniciando envio para a central...")
                 hnd.execWithTX {
                     model.enviarParaCentral(pedidoOLVO)
+
                 }
             }catch (e: EnviarPedidoCentralException){
                 LogOL.info("Registrando erro tratado (${e.retornoOL.name}/${pedidoOLVO.nuPedOL})...")
