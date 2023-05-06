@@ -5,14 +5,18 @@ import br.com.orientefarma.integradorol.commons.LogOL
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.model.IntegradorOL
 import br.com.orientefarma.integradorol.model.PedidoOL
+import br.com.sankhya.modelcore.auth.AuthenticationInfo
+import br.com.sankhya.modelcore.util.SPBeanUtils
+import br.com.sankhya.ws.ServiceContext
 
 class IntegradorOLController {
-    fun enviarParaCentral(nuPedOL: String, codProjeto: Int): Int? {
+    private fun enviarParaCentral(pedidoOL: PedidoOL, ehJob: Boolean = false): Int? {
         var nuNotaEnviado: Int? = null
         openSession { hnd ->
-            val pedidoOL = PedidoOL(nuPedOL, codProjeto)
             try{
+                if(ehJob) setarVariaveisSessao()
                 LogOL.info("Iniciando envio para a central...")
+                hnd.execWithTX { pedidoOL.marcarComoEnviandoParaCentral() }
                 hnd.execWithTX {
                     val integradorOL = IntegradorOL(pedidoOL)
                     nuNotaEnviado = integradorOL.enviarParaCentral()
@@ -29,5 +33,24 @@ class IntegradorOLController {
             }
         }
         return nuNotaEnviado
+    }
+
+    fun enviarParaCentral(nuPedOL: String, codProjeto: Int): Int? {
+        val pedidoOL = PedidoOL.fromPk(nuPedOL, codProjeto)
+        return enviarParaCentral(pedidoOL)
+    }
+
+    fun enviarPendentesParaCentral(){
+        val pedidoOLPendentes = PedidoOL.fromPendentes()
+        for (pedidoOLPendente in pedidoOLPendentes) {
+            enviarParaCentral(pedidoOLPendente, true)
+        }
+    }
+
+    private fun setarVariaveisSessao() {
+        val serviceContext = ServiceContext(null)
+        serviceContext.autentication = AuthenticationInfo.getCurrent()
+        serviceContext.makeCurrent()
+        SPBeanUtils.setupContext(serviceContext)
     }
 }

@@ -53,10 +53,8 @@ dependencies {
     implementation("br.com.sankhya", "mge-param", skwVersion)
     implementation("br.com.sankhya", "sanws", skwVersion)
     implementation("br.com.sankhya", "cuckoo", skwVersion)
+    implementation("javax.servlet", "servlet-api", "2.5")
     implementation("br.com.lughconsultoria", "lugh-lib", lughVersion )
-    //implementation("net.sf.jasperreports", "jasperreports", "4.0.0")
-    //implementation("com.squareup.okhttp3", "okhttp", "3.9.0")
-    //implementation("com.google.code.gson","gson","2.9.0")
 
 }
 

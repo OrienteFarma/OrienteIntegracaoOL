@@ -2,7 +2,8 @@ package br.com.orientefarma.integradorol.commons
 
 @Suppress("unused")
 enum class StatusPedidoOLEnum(val valor: String) {
-    INTEGRANDO("I"),
+    IMPORTANDO("I"),
+    ENVIANDO_CENTRAL("C"),
     PENDENTE("P"),
     RETORNO("R"),
     ESPELHO("E"),

@@ -32,6 +32,11 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
         itemPedidoOLDAO.save(vo)
     }
 
+    fun marcarComoNaoPendente(){
+        this.vo.pendente = false
+        itemPedidoOLDAO.save(this.vo)
+    }
+
     private fun calcularCodigoRetorno(): RetornoItemPedidoEnum {
         for (retornoItem in RetornoItemPedidoEnum.values()) {
             if (this.mensagem.contains(retornoItem.expressaoRegex)) {
@@ -40,7 +45,6 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
         }
         return RetornoItemPedidoEnum.FALHA_DESCONHECIDA
     }
-
     override fun toString(): String {
         return "EnviarItemPedidoCentralException(mensagem=$mensagem)"
     }

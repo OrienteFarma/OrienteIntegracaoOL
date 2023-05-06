@@ -15,4 +15,12 @@ class PedidoOLDAO : GenericDAO<PedidoOLVO>("AD_INTCABOL", PedidoOLVO::class.java
         }
     }
 
+    fun findIntegrados(maxResults: Int = 10): Collection<PedidoOLVO> {
+        return find {
+            it.where = " STATUS = 'I' "
+            it.maxResults = maxResults
+        }
+
+    }
+
 }

@@ -2,6 +2,7 @@ package br.com.orientefarma.integradorol.dao.vo
 
 import br.com.lugh.dao.WrapperVO
 import br.com.lugh.dsl.metadados.pojo.Delegate
+import br.com.lugh.dsl.metadados.pojo.DelegateBooleanNotNull
 import br.com.lugh.dsl.metadados.pojo.DelegateNotNull
 import br.com.lugh.dsl.metadados.pojo.Pojo
 import java.math.BigDecimal
@@ -20,6 +21,7 @@ class ItemPedidoOLVO(vo: WrapperVO) : Pojo(vo) {
     var status: String? by Delegate()
     var codRetSkw: Int? by Delegate()
     var retSkw: String? by Delegate()
+    var pendente: Boolean by DelegateBooleanNotNull()
     var sequenciaArquivo: Int? by Delegate()
     var codProd: Int? by Delegate()
 }

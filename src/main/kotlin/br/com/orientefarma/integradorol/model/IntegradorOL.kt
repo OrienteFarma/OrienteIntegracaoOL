@@ -64,7 +64,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val pedidoCentralVO = criarCabecalho(pedidoOL.vo, clienteVO)
         criarItensCentral(pedidoOL, pedidoCentralVO)
         sumarizar(pedidoCentralVO)
-        pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
         return pedidoCentralVO.nuNota
     }
 
@@ -80,6 +79,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             setSessionProperty("ItemNota.incluindo.alterando.pela.central", true)
             validarAgrupamentoMinimoEmbalagem(pedidoCentralVO)
             confirmarMovCentral(pedidoCentralVO.nuNota)
+            pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
         } catch (e: Exception) {
             val message = e.message ?: ""
@@ -87,6 +87,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             if (tentarSumarizarNovamente){
                 return sumarizar(pedidoCentralVO)
             }
+
+
         }
     }
 
@@ -115,6 +117,15 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 itemPedidoOL?.salvarRetornoItemPedidoOL()
                 return true
             }
+        }
+
+        val naoAtendeuMinimo = mensagem.contains("pedido não atende o valor mínimo")
+        if(naoAtendeuMinimo){
+            pedidoOL.salvarRetornoSankhya(RetornoPedidoEnum.CONDICAO, mensagem)
+        }
+
+        if(!pedidoOL.temFeedback()){
+            pedidoOL.salvarRetornoSankhya(RetornoPedidoEnum.ERRO_DESCONHECIDO, mensagem)
         }
 
         marcarTodosItensComoNaoPendente(pedidoCentralVO.nuNota)
@@ -183,6 +194,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             it.parameters = arrayOf(nuNota)
         }
         itensVO.forEach { marcarItemComoNaoPendente(it) }
+        pedidoOL.getItens().forEach { it.marcarComoNaoPendente() }
     }
 
     private fun criarItensCentral(pedidoOL: PedidoOL, pedidoCentralVO: CabecalhoNotaVO){
@@ -190,7 +202,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         for (itemPedidoOL in itensPedidoOL) {
             try {
                 criarItemCentral(itemPedidoOL, pedidoCentralVO)
-            }catch (ignorada: EnviarItemPedidoCentralException){
+            }catch (e: EnviarItemPedidoCentralException){
+                itemPedidoOL.setFeedback(e.mensagem ?: "", 0)
             }finally {
                 itemPedidoOL.salvarRetornoItemPedidoOL()
             }
@@ -412,7 +425,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             "AD_CODTIPVENDA" to codTipVenda,
             "AD_NUINTEGRACAO" to pedidoOLVO.codPrj.toBigDecimal(),
             "OBSERVACAO" to pedidoOLVO.nuPedCli,
-            "AD_STATUSOL" to StatusPedidoOLEnum.INTEGRANDO.valor
+            "AD_STATUSOL" to StatusPedidoOLEnum.IMPORTANDO.valor
         )
 
         LogOL.info("Tentando criar cabecalho com os dados $camposPedidoCentral...")
