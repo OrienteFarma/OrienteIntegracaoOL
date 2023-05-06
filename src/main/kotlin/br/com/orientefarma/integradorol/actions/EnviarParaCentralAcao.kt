@@ -18,7 +18,12 @@ class EnviarParaCentralAcao : AcaoRotinaJava {
         for (linha in contextoAcao.linhas) {
             val nuPedOL = linha.getCampo("NUPEDOL").toString()
             val codProjeto = linha.getCampo("CODPRJ").toString().toInt()
-            controller.enviarParaCentral(nuPedOL, codProjeto)
+            val nuNota = controller.enviarParaCentral(nuPedOL, codProjeto)
+            if(nuNota != null){
+                contextoAcao.setMensagemRetorno("Pedido $nuNota criado com sucesso.")
+            }else{
+                contextoAcao.setMensagemRetorno("Não foi possível criar o pedido, verifique os campos de retorno.")
+            }
         }
 
     }

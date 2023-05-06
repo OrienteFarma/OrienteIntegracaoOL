@@ -9,7 +9,6 @@ import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 
 class PedidoOL(val nuPedOL: String, val codPrj: Int) {
     private val pedidoOLDAO = PedidoOLDAO()
-    private val itemPedidoOLDAO = ItemPedidoOLDAO()
 
     val vo: PedidoOLVO = pedidoOLDAO.findByPk(nuPedOL, codPrj)
 

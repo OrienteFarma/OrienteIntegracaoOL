@@ -58,13 +58,14 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         } ?: throw IllegalStateException("Verifique o parâmetro $nomeParamModeloPedido.")
     }
 
-    fun enviarParaCentral(){
+    fun enviarParaCentral(): Int {
         verificarSePedidoExisteCentral(pedidoOL.nuPedOL, pedidoOL.codPrj)
         val clienteVO = buscarCliente(pedidoOL.vo)
         val pedidoCentralVO = criarCabecalho(pedidoOL.vo, clienteVO)
         criarItensCentral(pedidoOL, pedidoCentralVO)
         sumarizar(pedidoCentralVO)
         pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
+        return pedidoCentralVO.nuNota
     }
 
     private fun sumarizar(pedidoCentralVO: CabecalhoNotaVO) {
@@ -202,7 +203,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
         val camposItem = preencherCamposGerais(pedidoCentralVO, itemPedidoOLVO)
 
-        val qtdEstoque = preencherCamposEstoque(pedidoCentralVO, itemPedidoOLVO, camposItem)
+        val qtdEstoque = preencherCamposEstoque(pedidoCentralVO, itemPedidoOL, camposItem)
 
         val itemInseridoDados = inserirItemSemPreco(pedidoCentralVO, camposItem)
 
@@ -248,7 +249,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
     }
 
-    private fun preencherCamposEstoque(pedidoCentralVO: CabecalhoNotaVO, itemPedidoOLVO: ItemPedidoOLVO,
+    private fun preencherCamposEstoque(pedidoCentralVO: CabecalhoNotaVO, itemPedidoOL: ItemPedidoOL,
                                        camposItem: MutableMap<String, Any?>): Int {
         val qtdEstoque = Estoque().consultaEstoque(
             codEmp = pedidoCentralVO.codEmp.toBigDecimal(),
@@ -257,7 +258,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             reserva = true
         ).toInt()
 
-        val qtdArquivo = requireNotNull(itemPedidoOLVO.qtdPed)
+        val qtdArquivo = requireNotNull(itemPedidoOL.vo.qtdPed)
 
         camposItem.put("BH_QTDNEGORIGINAL", qtdArquivo.toBigDecimal())
         camposItem.put("QTDNEG", qtdArquivo.toBigDecimal())
@@ -269,6 +270,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             if (qtdAtendida < 1) {
                 camposItem.put("QTDNEG", qtdArquivo.toBigDecimal())
                 camposItem.put("BH_QTDCORTE", qtdArquivo.toBigDecimal())
+                itemPedidoOL.setFeedback(RetornoItemPedidoEnum.ESTOQUE_INSUFICIENTE, 0,
+                    "Estoque insuficiente")
             } else {
                 camposItem.put("QTDNEG", qtdAtendida.toBigDecimal())
                 camposItem.put("BH_QTDCORTE", qtdArquivo.toBigDecimal() - qtdAtendida.toBigDecimal())

@@ -7,14 +7,15 @@ import br.com.orientefarma.integradorol.model.IntegradorOL
 import br.com.orientefarma.integradorol.model.PedidoOL
 
 class IntegradorOLController {
-    fun enviarParaCentral(nuPedOL: String, codProjeto: Int) {
+    fun enviarParaCentral(nuPedOL: String, codProjeto: Int): Int? {
+        var nuNotaEnviado: Int? = null
         openSession { hnd ->
             val pedidoOL = PedidoOL(nuPedOL, codProjeto)
             try{
                 LogOL.info("Iniciando envio para a central...")
                 hnd.execWithTX {
                     val integradorOL = IntegradorOL(pedidoOL)
-                    integradorOL.enviarParaCentral()
+                    nuNotaEnviado = integradorOL.enviarParaCentral()
                 }
             }catch (e: EnviarPedidoCentralException){
                 LogOL.info("Registrando erro tratado (${e.retornoOL.name}/${pedidoOL.nuPedOL})...")
@@ -27,5 +28,6 @@ class IntegradorOLController {
                 }
             }
         }
+        return nuNotaEnviado
     }
 }
