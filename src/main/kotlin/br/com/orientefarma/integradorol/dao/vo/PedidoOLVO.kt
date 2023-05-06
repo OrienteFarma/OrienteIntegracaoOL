@@ -25,7 +25,7 @@ class PedidoOLVO(vo: WrapperVO) : Pojo(vo) {
     var retSkw: String? by Delegate()
     var codRetSkw: RetornoPedidoEnum? by EnumDelegate(RetornoPedidoEnum::class.java)
     var status: StatusPedidoOLEnum? by EnumDelegate(StatusPedidoOLEnum::class.java)
-    var nuNota: String? by Delegate()
+    var nuNota: Int? by Delegate()
     var nuPedCli: String? by Delegate()
     var dhInclusao: Timestamp? by Delegate()
 }

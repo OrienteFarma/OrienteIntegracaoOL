@@ -11,15 +11,16 @@ import br.com.lughconsultoria.dao.vo.ItemNotaVO
 import br.com.lughconsultoria.dao.vo.ParceiroVO
 import br.com.lughconsultoria.dao.vo.ProdutoVO
 import br.com.orientefarma.integradorol.commons.LogOL
+import br.com.orientefarma.integradorol.commons.RetornoItemPedidoEnum
 import br.com.orientefarma.integradorol.commons.RetornoPedidoEnum
 import br.com.orientefarma.integradorol.commons.StatusPedidoOLEnum
-import br.com.orientefarma.integradorol.dao.*
+import br.com.orientefarma.integradorol.dao.CabecalhoNotaDAO
+import br.com.orientefarma.integradorol.dao.toCabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.CabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
-import br.com.orientefarma.integradorol.model.pojo.ItemPedidoPojo
 import br.com.sankhya.jape.core.JapeSession
 import br.com.sankhya.jape.util.JapeSessionContext
 import br.com.sankhya.modelcore.auth.AuthenticationInfo
@@ -31,12 +32,10 @@ import br.com.sankhya.modelcore.util.MGECoreParameter
 import java.math.BigDecimal
 
 
-class IntegradorOL {
+class IntegradorOL(val pedidoOL: PedidoOL) {
 
     private val cabecalhoNotaDAO = CabecalhoNotaDAO()
     private val itemNotaDAO = ItemNotaDAO()
-    private val pedidoOLDAO = PedidoOLDAO()
-    private val itemPedidoOLDAO = ItemPedidoOLDAO()
     private val parceiroDAO = ParceiroDAO()
     private val produtoDAO = ProdutoDAO()
 
@@ -59,19 +58,13 @@ class IntegradorOL {
         } ?: throw IllegalStateException("Verifique o parâmetro $nomeParamModeloPedido.")
     }
 
-    fun buscarPedidoOL(nuPedOL: String, codProjeto: Int): PedidoOLVO {
-        return pedidoOLDAO.findByPk(nuPedOL, codProjeto)
-    }
-
-    fun enviarParaCentral(pedidoOLVO: PedidoOLVO){
-        verificarSePedidoExisteCentral(pedidoOLVO.nuPedOL, pedidoOLVO.codPrj)
-        val clienteVO = buscarCliente(pedidoOLVO)
-        val pedidoCentralVO = criarCabecalho(pedidoOLVO, clienteVO)
-        criarItensCentral(pedidoOLVO, pedidoCentralVO)
+    fun enviarParaCentral(){
+        verificarSePedidoExisteCentral(pedidoOL.nuPedOL, pedidoOL.codPrj)
+        val clienteVO = buscarCliente(pedidoOL.vo)
+        val pedidoCentralVO = criarCabecalho(pedidoOL.vo, clienteVO)
+        criarItensCentral(pedidoOL, pedidoCentralVO)
         sumarizar(pedidoCentralVO)
-
-
-        marcarSucessoStatusCabecalhoOL(pedidoOLVO)
+        pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
     }
 
     private fun sumarizar(pedidoCentralVO: CabecalhoNotaVO) {
@@ -96,21 +89,44 @@ class IntegradorOL {
         }
     }
 
-    private fun verificarRegrasComerciais(messagem: String, pedidoCentralVO: CabecalhoNotaVO): Boolean {
-        val ehNaoPertenceCondicaoComercial = messagem.contains("não pertence a condição comercial")
+    private fun verificarRegrasComerciais(mensagem: String, pedidoCentralVO: CabecalhoNotaVO): Boolean {
+        val ehNaoPertenceCondicaoComercial = mensagem.contains("não pertence a condição comercial")
         if (ehNaoPertenceCondicaoComercial) {
-            val resultadoRegex = Regex("[0-9]+").findAll(messagem)
-            var codProd = ""
-            for (matchResult in resultadoRegex.iterator()) {
-                codProd += matchResult.value
-            }
-            if (codProd.isNotEmpty()) {
+            val codProd = extrairCodigoProdutoPorMsgCondicaoComercial(mensagem)
+            if (codProd != null) {
                 marcarItemComoNaoPendente(pedidoCentralVO.nuNota, codProd.toInt())
                 return true
             }
         }
 
+        val ehDocumentoFaltante = mensagem.contains("documento(s) faltante(s)")
+        if (ehDocumentoFaltante) {
+            val regexProdutosComDocsFaltantes = Regex(".*Produto: \\d*")
+            for (matchResult in regexProdutosComDocsFaltantes.findAll(mensagem)) {
+                val codProd = matchResult.value.replace(Regex(".*Produto: "), "").toInt()
+
+                marcarItemComoNaoPendente(pedidoCentralVO.nuNota, codProd, "FALTA DOCUMENTACAO")
+
+                val numPedidoOL = pedidoCentralVO.vo.asString("AD_NUMPEDIDO_OL") ?: "0"
+                val codProjeto = pedidoCentralVO.vo.asInt("AD_NUINTEGRACAO")
+                val itemPedidoOL = ItemPedidoOL.fromCodProd(numPedidoOL, codProjeto, codProd)
+                itemPedidoOL?.setFeedback("Falta de documentação", 0)
+                itemPedidoOL?.salvarRetornoItemPedidoOL()
+                return true
+            }
+        }
+
+        marcarTodosItensComoNaoPendente(pedidoCentralVO.nuNota)
         return false
+    }
+
+    private fun extrairCodigoProdutoPorMsgCondicaoComercial(mensagem: String): Int? {
+        val resultadoRegex = Regex("[0-9]+").findAll(mensagem)
+        var codProd = ""
+        for (matchResult in resultadoRegex.iterator()) {
+            codProd += matchResult.value
+        }
+        return tryOrNull { codProd.toInt() }
     }
 
     private fun validarAgrupamentoMinimoEmbalagem(pedidoCentralVO: CabecalhoNotaVO) {
@@ -147,7 +163,7 @@ class IntegradorOL {
     }
 
     private fun marcarItemComoNaoPendente(itemNotaVO: ItemNotaVO, observacao: String? = null) {
-        itemNotaVO.observacao = observacao
+        itemNotaVO.observacao = observacao ?: itemNotaVO.observacao
         itemNotaVO.pendente = false
         itemNotaDAO.save(itemNotaVO)
     }
@@ -160,57 +176,75 @@ class IntegradorOL {
         itensVO.forEach { marcarItemComoNaoPendente(it, observacao) }
     }
 
-    private fun marcarSucessoStatusCabecalhoOL(pedidoOLVO: PedidoOLVO) {
-        pedidoOLVO.codRetSkw = RetornoPedidoEnum.SUCESSO
-        pedidoOLVO.retSkw = ""
-        pedidoOLVO.status = StatusPedidoOLEnum.PENDENTE
-        pedidoOLDAO.save(pedidoOLVO)
+    private fun marcarTodosItensComoNaoPendente(nuNota: Int) {
+        val itensVO = itemNotaDAO.find {
+            it.where = "NUNOTA = ?"
+            it.parameters = arrayOf(nuNota)
+        }
+        itensVO.forEach { marcarItemComoNaoPendente(it) }
     }
 
-    private fun criarItensCentral(pedidoOLVO: PedidoOLVO, pedidoCentralVO: CabecalhoNotaVO){
-        val itensOL = itemPedidoOLDAO.findByNumPedOL(pedidoOLVO.nuPedOL, pedidoOLVO.codPrj)
-        for (itemPedidoOLVO in itensOL) {
-            val itemPedidoPojo = try {
-                criarItemCentral(itemPedidoOLVO, pedidoCentralVO)
-            }catch (e: EnviarItemPedidoCentralException){
-                e.itemPedidoPojo
+    private fun criarItensCentral(pedidoOL: PedidoOL, pedidoCentralVO: CabecalhoNotaVO){
+        val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
+        for (itemPedidoOL in itensPedidoOL) {
+            try {
+                criarItemCentral(itemPedidoOL, pedidoCentralVO)
+            }catch (ignorada: EnviarItemPedidoCentralException){
+            }finally {
+                itemPedidoOL.salvarRetornoItemPedidoOL()
             }
-            if(itemPedidoPojo != null){
-                salvarRetornoItemPedidoOL(itemPedidoOLVO, itemPedidoPojo)
-            }
+
         }
     }
 
-    private fun criarItemCentral(itemPedidoOLVO: ItemPedidoOLVO, pedidoCentralVO: CabecalhoNotaVO): ItemPedidoPojo? {
-        try {
+    private fun criarItemCentral(itemPedidoOL: ItemPedidoOL, pedidoCentralVO: CabecalhoNotaVO){
+        val itemPedidoOLVO = itemPedidoOL.vo
 
-            val camposItem = preencherCamposGerais(pedidoCentralVO, itemPedidoOLVO)
+        val camposItem = preencherCamposGerais(pedidoCentralVO, itemPedidoOLVO)
 
-            val qtdEstoque = preencherCamposEstoque(pedidoCentralVO, itemPedidoOLVO, camposItem)
+        val qtdEstoque = preencherCamposEstoque(pedidoCentralVO, itemPedidoOLVO, camposItem)
 
-            val itemInseridoDados = inserirItemSemPreco(pedidoCentralVO, camposItem)
+        val itemInseridoDados = inserirItemSemPreco(pedidoCentralVO, camposItem)
 
-            val retornoException = itemInseridoDados.second
-            if (retornoException != null) {
-                throw retornoException
-            }
+        val retornoException = itemInseridoDados.second
+        if (retornoException != null) {
+            retornoException.printStackTrace()
+            itemPedidoOL.setFeedback("Erro ao inserir o item: ${retornoException.mensagem}", 0)
+            return
+        }
 
-            val itemInseridoVO = itemInseridoDados.first ?: return null
+        val itemInseridoVO = itemInseridoDados.first ?: return
 
-            tratarDesconto(itemInseridoVO, itemPedidoOLVO)
+        tratarDesconto(itemInseridoVO, itemPedidoOL)
 
-            itemNotaDAO.save(itemInseridoVO)
+        itemNotaDAO.save(itemInseridoVO)
 
-            return if (qtdEstoque <= 0) {
-                ItemPedidoPojo("Estoque insuficiente")
+        val qtdAtendida = if("S" == itemInseridoVO.vo.asString("AD_OLMARCARPENDENTE_NAO")){
+            0
+        } else {
+            requireNotNull(itemInseridoVO.qtdneg).toInt()
+        }
+
+        if(!itemPedidoOL.temFeedback()){
+            val codRetorno =
+                calcularRetornoAtendimentoItem(qtdEstoque, requireNotNull(itemPedidoOL.vo.qtdPed), qtdAtendida)
+            itemPedidoOL.setFeedback(codRetorno, qtdAtendida)
+        }
+    }
+
+    private fun calcularRetornoAtendimentoItem(qtdEstoque: Int, qtdPedida: Int, qtdAtendida: Int): RetornoItemPedidoEnum {
+        return if (qtdEstoque <= 0) {
+            RetornoItemPedidoEnum.ESTOQUE_INSUFICIENTE
+        } else {
+            if (qtdAtendida == 0) {
+                RetornoItemPedidoEnum.NAO_ATENDIDO
             } else {
-                ItemPedidoPojo("Parcialmente atendido")
+                if (qtdAtendida < qtdPedida) {
+                    RetornoItemPedidoEnum.ESTOQUE_PARCIALMENTE
+                } else {
+                    RetornoItemPedidoEnum.SUCESSO
+                }
             }
-
-        } catch (excecaoTratada: EnviarItemPedidoCentralException) {
-            throw excecaoTratada
-        } catch (e: Exception) {
-            throw EnviarItemPedidoCentralException(ItemPedidoPojo(e.message))
         }
     }
 
@@ -277,24 +311,19 @@ class IntegradorOL {
     private fun getProdutoVO(codProd: Int?): ProdutoVO {
         val produtoVO = produtoDAO.findByPK(requireNotNull(codProd){"Produto n\u00e3o informado."})
         if (!produtoVO.ativo) {
-            val itemPedidoPojo = ItemPedidoPojo("Produto ${codProd} n\u00e3o esta ativo.")
-            throw EnviarItemPedidoCentralException(itemPedidoPojo)
+            throw EnviarItemPedidoCentralException("Produto ${codProd} n\u00e3o esta ativo.")
         }
         return produtoVO
     }
 
-    private fun salvarRetornoItemPedidoOL(itemPedidoOLVO: ItemPedidoOLVO, itemPedidoPojo: ItemPedidoPojo) {
-        val retornoItem = itemPedidoPojo.calcularCodigoRetorno()
-        itemPedidoOLVO.codRetSkw = retornoItem.codigo
-        itemPedidoOLVO.retSkw = itemPedidoPojo.mensagem
-        itemPedidoOLDAO.save(itemPedidoOLVO)
-    }
-
-    private fun tratarDesconto(itemInseridoVO: ItemNotaVO, itemPedidoOLVO: ItemPedidoOLVO) {
+    private fun tratarDesconto(itemInseridoVO: ItemNotaVO, itemPedidoOL: ItemPedidoOL) {
+        val itemPedidoOLVO = itemPedidoOL.vo
         val precoBase = itemInseridoVO.precobase ?: 0.toBigDecimal()
         if (precoBase <= BigDecimal.ZERO) {
+            val mensagem = "Preço base zerado"
             itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
-            itemInseridoVO.observacao = "PRECO BASE ZERADO"
+            itemInseridoVO.observacao = mensagem
+            itemPedidoOL.setFeedback(RetornoItemPedidoEnum.CONDICAO, 0,mensagem)
         } else {
             val percDescCondicao = itemInseridoVO.vo.asBigDecimalOrZero("AD_PERCDESC")
             val percDescArquivo = itemPedidoOLVO.prodDesc ?: 0.toBigDecimal()
@@ -337,7 +366,7 @@ class IntegradorOL {
         try {
             barramento = incluirItensSemPreco(pedidoCentralVO.nuNota.toBigDecimal(), arrayOf(camposItem))
         } catch (e: Exception) {
-            exceptionAoIncluir = EnviarItemPedidoCentralException(ItemPedidoPojo(e.message))
+            exceptionAoIncluir = EnviarItemPedidoCentralException(e.message)
         }
 
         val pksItemNota = barramento?.pksEnvolvidas?.first()
@@ -435,22 +464,8 @@ class IntegradorOL {
 
     }
 
-    fun salvarRetornoSankhya(pedidoOLVO: PedidoOLVO, exception: EnviarPedidoCentralException){
-        pedidoOLVO.codRetSkw = exception.retornoOL
-        pedidoOLVO.retSkw = exception.mensagem
-        pedidoOLVO.status = StatusPedidoOLEnum.ERRO
-        pedidoOLDAO.save(pedidoOLVO)
-    }
-
-    fun salvarErroSankhya(pedidoOLVO: PedidoOLVO, exception: Exception){
-        pedidoOLVO.codRetSkw = RetornoPedidoEnum.ERRO_DESCONHECIDO
-        pedidoOLVO.retSkw = exception.message
-        pedidoOLVO.status = StatusPedidoOLEnum.ERRO
-        pedidoOLDAO.save(pedidoOLVO)
-    }
-
     @Throws(Exception::class)
-    fun incluirItensSemPreco(nuNota: BigDecimal, itens: Array<Map<String, Any?>>): BarramentoRegra.DadosBarramento? {
+    private fun incluirItensSemPreco(nuNota: BigDecimal, itens: Array<Map<String, Any?>>): BarramentoRegra.DadosBarramento? {
         try {
             setAuthenticationInfo()
             val barramentoRegra =  CentralNotasUtils.incluirItens(nuNota, itens.toList(),false)
@@ -474,7 +489,7 @@ class IntegradorOL {
     }
 
     @Throws(Exception::class)
-    fun confirmarMovCentral(nuNota: Int): BarramentoRegra.DadosBarramento {
+    private fun confirmarMovCentral(nuNota: Int): BarramentoRegra.DadosBarramento {
         val auth = setAuthenticationInfo()
         val barramento = BarramentoRegra.build(CentralFaturamento::class.java, "regrasConfirmacaoSilenciosa.xml", auth)
 

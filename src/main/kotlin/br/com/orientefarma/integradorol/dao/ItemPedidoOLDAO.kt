@@ -23,4 +23,11 @@ class ItemPedidoOLDAO : GenericDAO<ItemPedidoOLVO>("AD_INTITEOL", ItemPedidoOLVO
         }
     }
 
+    fun findByNumPedOLAndCodProd(nuPedOL: String, codProjeto: Int, codProd: Int): ItemPedidoOLVO? {
+        return findOne {
+            it.where = " NUPEDOL = ? AND CODPRJ = ? AND CODPROD = ?"
+            it.parameters = arrayOf(nuPedOL, codProjeto, codProd)
+        }
+    }
+
 }

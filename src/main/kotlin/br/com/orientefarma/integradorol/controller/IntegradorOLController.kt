@@ -4,28 +4,26 @@ import br.com.lugh.dao.openSession
 import br.com.orientefarma.integradorol.commons.LogOL
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.model.IntegradorOL
+import br.com.orientefarma.integradorol.model.PedidoOL
 
 class IntegradorOLController {
     fun enviarParaCentral(nuPedOL: String, codProjeto: Int) {
-        val model = IntegradorOL()
         openSession { hnd ->
-            val pedidoOLVO = model.buscarPedidoOL(nuPedOL, codProjeto)
+            val pedidoOL = PedidoOL(nuPedOL, codProjeto)
             try{
                 LogOL.info("Iniciando envio para a central...")
                 hnd.execWithTX {
-                    model.enviarParaCentral(pedidoOLVO)
-
+                    val integradorOL = IntegradorOL(pedidoOL)
+                    integradorOL.enviarParaCentral()
                 }
             }catch (e: EnviarPedidoCentralException){
-                LogOL.info("Registrando erro tratado (${e.retornoOL.name}/${pedidoOLVO.nuPedOL})...")
-                hnd.execWithTX {
-                    model.salvarRetornoSankhya(pedidoOLVO, e)
-                }
+                LogOL.info("Registrando erro tratado (${e.retornoOL.name}/${pedidoOL.nuPedOL})...")
+                hnd.execWithTX { pedidoOL.salvarRetornoSankhya(e) }
             }catch (e: Exception){
                 LogOL.erro("Erro nao conhecido: ${e.message} ...")
                 e.printStackTrace()
                 hnd.execWithTX {
-                    model.salvarErroSankhya(pedidoOLVO, e)
+                    pedidoOL.salvarErroSankhya(e)
                 }
             }
         }
