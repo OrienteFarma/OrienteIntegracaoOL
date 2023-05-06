@@ -40,6 +40,14 @@ class PedidoOL(val vo: PedidoOLVO) {
         pedidoOLDAO.save(vo)
     }
 
+    fun salvarErroSankhya(e: EnviarPedidoCentralException){
+        setFeedback(e.retornoOL, e.mensagem)
+        vo.codRetSkw = this.codigoRetorno
+        vo.retSkw = this.mensagem
+        vo.status = StatusPedidoOLEnum.ERRO
+        pedidoOLDAO.save(vo)
+    }
+
     fun salvarErroSankhya(exception: Exception){
         val exceptionDesconhecida =
             EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)

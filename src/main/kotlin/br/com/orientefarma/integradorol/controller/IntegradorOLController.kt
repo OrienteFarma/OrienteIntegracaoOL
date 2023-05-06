@@ -23,7 +23,7 @@ class IntegradorOLController {
                 }
             }catch (e: EnviarPedidoCentralException){
                 LogOL.info("Registrando erro tratado (${e.retornoOL.name}/${pedidoOL.nuPedOL})...")
-                hnd.execWithTX { pedidoOL.salvarRetornoSankhya(e) }
+                hnd.execWithTX { pedidoOL.salvarErroSankhya(e) }
             }catch (e: Exception){
                 LogOL.erro("Erro nao conhecido: ${e.message} ...")
                 e.printStackTrace()
