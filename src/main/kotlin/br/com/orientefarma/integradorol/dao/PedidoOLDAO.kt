@@ -17,7 +17,7 @@ class PedidoOLDAO : GenericDAO<PedidoOLVO>("AD_INTCABOL", PedidoOLVO::class.java
 
     fun findIntegrados(maxResults: Int = 10): Collection<PedidoOLVO> {
         return find {
-            it.where = " STATUS = 'I' "
+            it.where = " STATUS = 'I' AND nullValue(BHIntegracaoProjeto->AD_NOVA_ABORDAGEM, 'N') = 'S' "
             it.maxResults = maxResults
         }
 

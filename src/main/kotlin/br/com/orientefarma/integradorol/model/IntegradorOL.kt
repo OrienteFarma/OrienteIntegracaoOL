@@ -4,6 +4,7 @@ package br.com.orientefarma.integradorol.model
 import br.com.lugh.bh.CentralNotasUtils
 import br.com.lugh.bh.tryOrNull
 import br.com.lugh.dao.EntityFacadeW
+import br.com.lugh.dao.update
 import br.com.lughconsultoria.dao.ItemNotaDAO
 import br.com.lughconsultoria.dao.ParceiroDAO
 import br.com.lughconsultoria.dao.ProdutoDAO
@@ -87,9 +88,14 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             if (tentarSumarizarNovamente){
                 return sumarizar(pedidoCentralVO)
             }
-
-
+        } finally {
+            alterarStatusCentral(pedidoCentralVO.nuNota, StatusPedidoOLEnum.PENDENTE)
         }
+    }
+
+    private fun alterarStatusCentral(nuNota: Int, status: StatusPedidoOLEnum){
+        update("UPDATE TGFCAB SET AD_STATUSOL = :STATUS WHERE NUNOTA = :NUNOTA ",
+            mapOf("STATUS" to status.name, "NUNOTA" to nuNota))
     }
 
     private fun verificarRegrasComerciais(mensagem: String, pedidoCentralVO: CabecalhoNotaVO): Boolean {
@@ -304,6 +310,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val codLocalOrig: BigDecimal = getCodLocalProduto(produtoVO)
         return mutableMapOf(
             "NUNOTA" to pedidoCentralVO.nuNota.toBigDecimal(),
+            "SEQUENCIA" to itemPedidoOLVO.sequenciaArquivo?.toBigDecimal(),
             "CODEMP" to pedidoCentralVO.codEmp.toBigDecimal(),
             "CODPROD" to requireNotNull(itemPedidoOLVO.codProd).toBigDecimal(),
             "AD_CODCOND" to pedidoCentralVO.getAditionalField("CODCOND"),
@@ -415,7 +422,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             "CODVEND" to (clienteVO.codvend ?: 0).toBigDecimal(),
             "CODPARC" to clienteVO.codparc!!.toBigDecimal(),
             "CODEMP" to (pedidoOLVO.codEmp ?: 1).toBigDecimal(),
-            "NUMPEDIDO2" to pedidoOLVO.nuPedCli,
+            "NUMPEDIDO2" to pedidoOLVO.nuPedCli?.take(15),
             "NUMNOTA" to BigDecimal.ZERO,
             "CIF_FOB" to "F",
             "CODTIPOPER" to paramTOPPedido,
@@ -425,7 +432,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             "AD_CODTIPVENDA" to codTipVenda,
             "AD_NUINTEGRACAO" to pedidoOLVO.codPrj.toBigDecimal(),
             "OBSERVACAO" to pedidoOLVO.nuPedCli,
-            "AD_STATUSOL" to StatusPedidoOLEnum.IMPORTANDO.valor
+            "AD_STATUSOL" to StatusPedidoOLEnum.IMPORTANDO.name
         )
 
         LogOL.info("Tentando criar cabecalho com os dados $camposPedidoCentral...")

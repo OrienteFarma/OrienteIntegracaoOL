@@ -24,27 +24,32 @@ SNK_NOMEARQUIVO = getCampoArquivo("SNK_NOMEARQUIVO")
 
 
 function getParceiro(cnpjCampoArquivo) {
-    
-    
+
+
     var_RODOUPARC = true
-log("Busca cliente, primeira tentativa: " + cnpjCampoArquivo);
+    log("[CONSULTA CLIENTE] Primeira tentativa: " + cnpjCampoArquivo);
     var parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ?", [cnpjCampoArquivo]);
 
     if (!parceiro) {
 
-        log("Busca cliente, segunda tentativa: " + cnpjCampoArquivo);
-         parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ?", [Number(cnpjCampoArquivo).toString()]);
+        log("[CONSULTA CLIENTE] Segunda tentativa: " + cnpjCampoArquivo);
+        parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ?", [Number(cnpjCampoArquivo).toString()]);
 
         if (!parceiro) {
             gravaLogCabecalhoSankhya("PARCEIRO NÃO ENCONTRADO", "CADASTRO", 3);
+
+            log("[CONSULTA CLIENTE] Cliente nao cadastrado: " + cnpjCampoArquivo);
             try{
-                
+
                 parceiro = novoParceiroDadosSefaz(cnpjCampoArquivo);
-                log("Novo cliente registrado: " + cnpjCampoArquivo);
+                log("[CONSULTA CLIENTE] Cliente registrado: " + cnpjCampoArquivo);
                 var_ehParceiroNovo = true;
-				
+
             } catch (err) {
-                var mensagemErro = getMensagemErro(err);
+                var mensagem = getMensagemErro(err);
+
+                log("[CONSULTA CLIENTE] Erro ao registrar cliente: " + mensagem);
+
                 gravaLogCabecalhoSankhya("FALHA AO GRAVAR O PARCEIRO"+mensagem, "CADASTRO", 3);
                 VAR_INGORE = true
                 return
@@ -54,15 +59,15 @@ log("Busca cliente, primeira tentativa: " + cnpjCampoArquivo);
     }
     if(parceiro.getCampo('ATIVO') == "N" ){
 
-        log("O cliente estava inativo: " + cnpjCampoArquivo);
+
         var_ehParceiroInativo = true;
         parceiro.setCampo("ATIVO", "S");
 
     }
 
-	parceiro.setCampo("CLIENTE", "S");
-	parceiro.save();
-	
+    parceiro.setCampo("CLIENTE", "S");
+    parceiro.save();
+
     getPrazoParceiro(parceiro.getCampo("CODPARC"));
 
     var_VENDEDOR = parceiro.getCampo('CODVEND');
@@ -72,8 +77,8 @@ log("Busca cliente, primeira tentativa: " + cnpjCampoArquivo);
 
 
 /* function getParceiro(cnpjCampoArquivo) {
-    
-    
+
+
     var_RODOUPARC = true
     var parceiroDefault = encontrarRegistroParam('Parceiro', "CGC_CPF = ?", [cnpjCampoArquivo]);
 
@@ -95,10 +100,10 @@ log("Busca cliente, primeira tentativa: " + cnpjCampoArquivo);
             }
         }
     }
-    
+
 	parceiroDefault.setCampo("CLIENTE", "S");
 	parceiroDefault.save();
-	
+
     getPrazoParceiro(parceiroDefault.getCampo("CODPARC"));
 
     var_VENDEDOR = parceiroDefault.getCampo('CODVEND');
@@ -723,12 +728,12 @@ function lancarItem() {
         }catch (e){
             log("AGORA_ERRO_SALVAR_ITEM"+e);
             //se ocorrer deadlock, aborta a inserção de itens
-            
+
             if(mensagem.indexOf("deadlock") > 0){
                 log("[integracao] deadlock detectado  " + mensagem  )
                 var_SUCESSO = false
                 var_DEADLOCK = true
-            } 
+            }
         }
 
         var itemNotaReg = encontrarRegistroParam(
@@ -916,8 +921,8 @@ function sumarizar(pedido) {
             }
 
             log('PD77_INICIANDO_SUMARIZAR3')
-            
-            
+
+
 
             marcarComoNaoPendenteFormaTardia();
             setJapeSessionVar("mov.financeiro.ignoraValidacao", true);
@@ -928,7 +933,7 @@ function sumarizar(pedido) {
             validaItems();
             log('PD77_INICIANDO_SUMARIZAR4')
 
-            
+
             validaPendenciaItems();
             confirmarnf(var_NUNOTA)
             totalizou = true
@@ -949,12 +954,13 @@ function sumarizar(pedido) {
         log('PD77_FINALIZANDO_CATCH_SUMARIZAR')
     } finally {
 
+        log("[CONSULTA CLIENTE] Eh cliente novo? " + var_ehParceiroNovo);
+        log("[CONSULTA CLIENTE] O cliente estava inativo? " + var_ehParceiroInativo);
+
 
         if(var_ehParceiroNovo|| var_ehParceiroInativo){
 
-            log("Eh cliente novo? " + var_ehParceiroNovo);
-            log("O cliente estava inativo? " + var_ehParceiroInativo);
-      
+
             var parceiro = encontrarRegistroParam('Parceiro', "CODPARC = ?", [var_CODPARC]);
             parceiro.setCampo("ATIVO", "N");
             parceiro.save();
@@ -967,11 +973,11 @@ function sumarizar(pedido) {
             pedido.save();
         }
         if(!totalizou){
-          log('PD77_FINALIZANDO_TOTALIZAR_FINNALY')
-           if (var_NUNOTA) {
-             totalizar(var_NUNOTA)
-           }
-          
+            log('PD77_FINALIZANDO_TOTALIZAR_FINNALY')
+            if (var_NUNOTA) {
+                totalizar(var_NUNOTA)
+            }
+
         }
         /*Se chegou até aqui, eh sucesso, pois o pedido ja esta dentro do sankhya.*/
         var_SUCESSO = true;
@@ -987,8 +993,8 @@ function confirmarnf(nuNota){
 
 function totalizar(nuNota){
     var impostosHelpper = newJava('br.com.sankhya.modelcore.comercial.impostos.ImpostosHelpper');
-            impostosHelpper.totalizarNota(nuNota);
-            impostosHelpper.salvarNota()
+    impostosHelpper.totalizarNota(nuNota);
+    impostosHelpper.salvarNota()
 }
 
 // ### INÍCIO DE IMPLEMENTAÇÕES DO CENTRALIZADOR ###
@@ -1006,10 +1012,9 @@ function pedidoJaExiste(pedidoOL, codIntegracao) {
 function gravaCabecalhoIntegracao(cabecalho) {
     log('CABECALHO PEDIDO EXISTE? ' + var_pedidoJaExisteNaBase);
     if(pedidoJaExiste(cabecalho.nroPedidoOL, cabecalho.codIntegracao)){
-       log("[INTEGRACAO OL]: O Pedido OL "+ cabecalho.nroPedidoOL + " ja existe na base. gravaCabecalhoIntegracao() abortado.")
+        log("[INTEGRACAO OL]: O Pedido OL "+ cabecalho.nroPedidoOL + " ja existe na base. gravaCabecalhoIntegracao() abortado.")
         var_pedidoJaExisteNaBase = true;
-        /*var_BREAK = true
-        var_SUCESSO = false*/
+        /* var_BREAK = true; var_SUCESSO = false*/
         return;
     }
 
@@ -1026,7 +1031,7 @@ function gravaCabecalhoIntegracao(cabecalho) {
         cabecalhoIntegracao.setCampo("CODPRZ", cabecalho.codPrazo);
         cabecalhoIntegracao.setCampo("NUPEDCLI", cabecalho.nroPedidoCliente);
         cabecalhoIntegracao.setCampo("DHINCLUSAO", globalDateToTimestamp(new Date()));
-        cabecalhoIntegracao.setCampo("STATUS", 'P');
+        cabecalhoIntegracao.setCampo("STATUS", 'I');
         //cabecalhoIntegracao.setCampo("NUNOTA", var_pedidoOL);
         //cabecalhoIntegracao.setCampo("RETSKW", var_pedidoOL);
         //cabecalhoIntegracao.setCampo("CODRETSKW", var_pedidoOL);
@@ -1040,28 +1045,57 @@ function gravaCabecalhoIntegracao(cabecalho) {
 }
 
 function gravaItemIntegracao(item) {
-    
+
     if(var_pedidoJaExisteNaBase){
         log("[INTEGRACAO OL]: O Pedido OL "+ cabecalho.nroPedidoOL + " ja existe na base. gravaItemIntegracao() abortado.")
         return;
     }
-    
+
     try {
+        var cabTabelaMeio = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND CODPRJ = ? ",
+            [item.nroPedidoOL, toBigDecimal(item.codIntegracao)]);
+
         log('[INTEGRACAO OL]: Tentativa de insercao do item '+item.ean+', gravaItemIntegracao()')
-        itemIntegracao = novaLinha("AD_INTITEOL");
-        itemIntegracao.setCampo("NUPEDOL", item.nroPedidoOL);
-        itemIntegracao.setCampo("CODPRJ", toBigDecimal(item.codIntegracao));
-        itemIntegracao.setCampo("REFERENCIA", item.ean);
-        itemIntegracao.setCampo("QTDPED",  item.quantidade);
-        itemIntegracao.setCampo("DTPRO", item.dataProcessamento);
-        itemIntegracao.setCampo("PRODDESC", toBigDecimal(item.percDesc));
-        itemIntegracao.setCampo("SEQUENCIAARQUIVO", item.sequenciaarquivo == null ? toBigDecimal(0) : toBigDecimal(item.sequenciaarquivo));
-        itemIntegracao.save();
-        log('[INTEGRACAO OL]: Item '+item.ean+' inserido com sucesso, gravaItemIntegracao()')
+        if(cabTabelaMeio){
+            var iteTabelaMeio = encontrarRegistroParam("AD_INTITEOL", "NUPEDOL = ? AND CODPRJ = ? AND REFERENCIA = ? ",
+                [item.nroPedidoOL, toBigDecimal(item.codIntegracao), item.ean]);
+            if(!iteTabelaMeio){
+                itemIntegracao = novaLinha("AD_INTITEOL");
+                itemIntegracao.setCampo("NUPEDOL", item.nroPedidoOL);
+                itemIntegracao.setCampo("CODPRJ", toBigDecimal(item.codIntegracao));
+                itemIntegracao.setCampo("REFERENCIA", item.ean);
+                itemIntegracao.setCampo("QTDPED",  item.quantidade);
+                itemIntegracao.setCampo("DTPRO", item.dataProcessamento);
+                itemIntegracao.setCampo("PRODDESC", toBigDecimal(item.percDesc));
+                itemIntegracao.setCampo("SEQUENCIAARQUIVO", item.sequenciaarquivo == null ? toBigDecimal(0) : toBigDecimal(item.sequenciaarquivo));
+                itemIntegracao.save();
+                log('[INTEGRACAO OL]: Item '+item.ean+' inserido com sucesso, gravaItemIntegracao()')
+            }else{
+                log('[INTEGRACAO OL]: Item '+item.ean+' ja existe na tabela meio.')
+            }
+
+        }
+
     } catch (err) {
         log('[INTEGRACAO OL] Erro na inserção de item no pedido de integração '+item.ean+', gravaItemIntegracao(): '+ err)
         var_SUCESSO = false;
     }
+}
+
+function gravaStatusTabelaMeio(nuNota, statusDestino){
+    var pedidoTabelaMeio = encontrarRegistroParam("AD_INTCABOL", "NUNOTA = ?", [nuNota]);
+    if (pedidoTabelaMeio) {
+        pedidoTabelaMeio.setCampo('STATUS', statusDestino)
+        pedidoTabelaMeio.save()
+    }
+}
+
+function gravaStatusTabelaMeioComoRetorno(nuNota){
+    gravaStatusTabelaMeio(nuNota, 'R')
+}
+
+function gravaStatusTabelaMeioComoEspelho(nuNota){
+    gravaStatusTabelaMeio(nuNota, 'E')
 }
 
 
@@ -1102,9 +1136,11 @@ function globalDateToTimestamp(data){
 }
 
 function atualizaNunotaIntegracao() {
-    var atualizaCabecalhoIntegracao = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND CODPRJ = ?", [var_pedidoOL, var_CODINTEGRACAO]);
-    atualizaCabecalhoIntegracao.setCampo("NUNOTA", var_NUNOTA);
-    atualizaCabecalhoIntegracao.save();
+    if(var_NUNOTA){
+        var atualizaCabecalhoIntegracao = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND CODPRJ = ?", [var_pedidoOL, var_CODINTEGRACAO]);
+        atualizaCabecalhoIntegracao.setCampo("NUNOTA", var_NUNOTA);
+        atualizaCabecalhoIntegracao.save();
+    }
 }
 
 /**
