@@ -449,9 +449,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private fun verificarSePedidoExisteCentral(nuPedOL: String, codProjeto: Int) {
         val pedidoOL = cabecalhoNotaDAO.findByPkOL(nuPedOL, codProjeto)
         if (pedidoOL != null) {
-            // todo descomentar apos testes
-//            throw EnviarPedidoCentralException("Pedido OL ja existe. Nro. Único: ${pedidoOL.nuNota}",
-//                RetornoPedidoEnum.PEDIDO_DUPLICADO)
+            throw EnviarPedidoCentralException("Pedido OL ja existe. Nro. Único: ${pedidoOL.nuNota}",
+                RetornoPedidoEnum.PEDIDO_DUPLICADO)
         }
     }
 
