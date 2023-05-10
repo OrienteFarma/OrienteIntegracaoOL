@@ -72,7 +72,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         try {
             if(tentativarConfirmacao <= 0) return
             tentativarConfirmacao--
-
             marcarComoNaoPendenteFormaTardia(pedidoCentralVO)
             setSessionProperty("mov.financeiro.ignoraValidacao", true)
             setSessionProperty("validar.alteracao.campos.em.titulos.baixados", false)
@@ -440,6 +439,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val cabecalhoVO = CentralNotasUtils.duplicaNota(paraModeloPedido, camposPedidoCentral).toCabecalhoNotaVO()
 
         LogOL.info("Conseguiu criar o cabecalho de numero unico ${cabecalhoVO.nuNota}...")
+
+        pedidoOL.setNuNotaCentral(cabecalhoVO.nuNota)
 
         return cabecalhoVO
 

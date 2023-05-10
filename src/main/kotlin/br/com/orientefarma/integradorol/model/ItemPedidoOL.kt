@@ -1,6 +1,7 @@
 package br.com.orientefarma.integradorol.model
 
 import br.com.orientefarma.integradorol.commons.RetornoItemPedidoEnum
+import br.com.orientefarma.integradorol.commons.retirarTagsHtml
 import br.com.orientefarma.integradorol.dao.ItemPedidoOLDAO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 
@@ -14,20 +15,20 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
         return codigoRetorno != null
     }
     fun setFeedback(mensagem: String, qtdAtendida: Int){
-        this.mensagem = mensagem
+        this.mensagem = mensagem.retirarTagsHtml().take(100)
         this.qtdAtendida = qtdAtendida
     }
 
     fun setFeedback(retorno: RetornoItemPedidoEnum, qtdAtendida: Int, mensagem: String = ""){
         this.codigoRetorno = retorno
-        this.mensagem = mensagem
+        this.mensagem = mensagem.retirarTagsHtml().take(100)
         this.qtdAtendida = qtdAtendida
     }
 
     fun salvarRetornoItemPedidoOL() {
         val retornoItem = codigoRetorno ?: calcularCodigoRetorno()
         vo.codRetSkw = retornoItem.codigo
-        vo.retSkw = mensagem
+        vo.retSkw = mensagem.retirarTagsHtml().take(100)
         vo.qtdAtd = qtdAtendida
         itemPedidoOLDAO.save(vo)
     }
