@@ -2,6 +2,7 @@ package br.com.orientefarma.integradorol.controller
 
 import br.com.lugh.dao.openSession
 import br.com.orientefarma.integradorol.commons.LogOL
+import br.com.orientefarma.integradorol.controller.dto.PedidoOLDto
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.model.IntegradorOL
 import br.com.orientefarma.integradorol.model.PedidoOL
@@ -34,13 +35,14 @@ class IntegradorOLController {
         return nuNotaEnviado
     }
 
-    fun enviarParaCentral(nuPedOL: String, codProjeto: Int): Int? {
-        var nuNotaEnviado: Int? = null
+    fun enviarParaCentral(pedidosOLDto: List<PedidoOLDto>){
         openSession {
-            val pedidoOL = PedidoOL.fromPk(nuPedOL, codProjeto)
-            nuNotaEnviado = enviarParaCentral(it, pedidoOL)
+            for (pedidoOLDto in pedidosOLDto) {
+                val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
+                val nuNotaEnviado = enviarParaCentral(it, pedidoOL)
+                pedidoOLDto.nuNotaEnviado = nuNotaEnviado
+            }
         }
-        return nuNotaEnviado
     }
 
     fun enviarPendentesParaCentral(){

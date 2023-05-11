@@ -1,6 +1,7 @@
 package br.com.orientefarma.integradorol.actions
 
 import br.com.orientefarma.integradorol.controller.IntegradorOLController
+import br.com.orientefarma.integradorol.controller.dto.PedidoOLDto
 import br.com.sankhya.extensions.actionbutton.AcaoRotinaJava
 import br.com.sankhya.extensions.actionbutton.ContextoAcao
 
@@ -14,17 +15,20 @@ class EnviarParaCentralAcao : AcaoRotinaJava {
             return
         }
 
-        val controller = IntegradorOLController()
-        for (linha in contextoAcao.linhas) {
-            val nuPedOL = linha.getCampo("NUPEDOL").toString()
-            val codProjeto = linha.getCampo("CODPRJ").toString().toInt()
-            val nuNota = controller.enviarParaCentral(nuPedOL, codProjeto)
-            if(nuNota != null){
-                contextoAcao.setMensagemRetorno("Pedido $nuNota criado.")
-            }else{
-                contextoAcao.setMensagemRetorno("Não foi possível criar o pedido, verifique os campos de retorno.")
-            }
+        if(contextoAcao.linhas.size > 1){
+            contextoAcao.setMensagemRetorno("Selecione um pedido por vez.")
+            return
         }
 
+        val pedidoOlDto = PedidoOLDto.fromLinhas(contextoAcao.linhas[0])
+
+        IntegradorOLController().enviarParaCentral(pedidoOlDto)
+
+        if(pedidoOlDto.size > 1 || pedidoOlDto.isEmpty()){
+            contextoAcao.setMensagemRetorno("Processamento concluído.")
+            return
+        }else{
+            contextoAcao.setMensagemRetorno("Pedido ${pedidoOlDto.first().nuNotaEnviado} criado.")
+        }
     }
 }
