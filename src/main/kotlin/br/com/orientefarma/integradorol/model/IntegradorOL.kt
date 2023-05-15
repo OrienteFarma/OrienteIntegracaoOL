@@ -25,6 +25,7 @@ import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.ItemNaoInseridoException
 import br.com.sankhya.jape.core.JapeSession
 import br.com.sankhya.jape.util.JapeSessionContext
+import br.com.sankhya.jape.wrapper.JapeFactory
 import br.com.sankhya.modelcore.auth.AuthenticationInfo
 import br.com.sankhya.modelcore.comercial.BarramentoRegra
 import br.com.sankhya.modelcore.comercial.CentralFaturamento
@@ -40,6 +41,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private val itemNotaDAO = ItemNotaDAO()
     private val parceiroDAO = ParceiroDAO()
     private val produtoDAO = ProdutoDAO()
+    private val condicaoDAO = JapeFactory.dao("AD_CONDCOMERCIAL")
 
     private val paramTOPPedido: BigDecimal
     private val paraModeloPedido: BigDecimal
@@ -416,6 +418,9 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private fun criarCabecalho(pedidoOLVO: PedidoOLVO, clienteVO: ParceiroVO): CabecalhoNotaVO {
         LogOL.info("Preparando a criacao do cabecalho...")
         val codTipVenda = requireNotNull(pedidoOLVO.codPrz) { " Prazo não informado. " }
+        val condicaoComercial = requireNotNull(pedidoOLVO.cond?.toBigDecimal()) { " Condição comercial não informada. " }
+
+        verificarCondicaoComercial(condicaoComercial)
 
         val camposPedidoCentral = mapOf(
             "AD_NUMPEDIDO_OL" to pedidoOLVO.nuPedOL,
@@ -428,7 +433,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             "CODTIPOPER" to paramTOPPedido,
             "AD_TIPOCONDICAO" to "O",
             "CODTIPVENDA" to codTipVenda,
-            "AD_CODCOND" to pedidoOLVO.cond?.toBigDecimal(),
+            "AD_CODCOND" to condicaoComercial,
             "AD_CODTIPVENDA" to codTipVenda,
             "AD_NUINTEGRACAO" to pedidoOLVO.codPrj.toBigDecimal(),
             "OBSERVACAO" to pedidoOLVO.nuPedCli,
@@ -445,6 +450,12 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
         return cabecalhoVO
 
+    }
+
+    private fun verificarCondicaoComercial(condicaoComercial: BigDecimal) {
+        condicaoDAO.findByPK(condicaoComercial) ?: throw EnviarPedidoCentralException(
+            "Condição Comercial $condicaoComercial não encontrada.", RetornoPedidoEnum.CONDICAO
+        )
     }
 
 
