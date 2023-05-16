@@ -101,6 +101,12 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     private fun verificarRegrasComerciais(mensagem: String, pedidoCentralVO: CabecalhoNotaVO): Boolean {
+        val ehErroFinanceiro = mensagem.contains("A somatória dos valores do financeiro")
+        if(ehErroFinanceiro){
+            pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
+            return false
+        }
+
         val ehNaoPertenceCondicaoComercial = mensagem.contains("não pertence a condição comercial")
         if (ehNaoPertenceCondicaoComercial) {
             val codProd = extrairCodigoProdutoPorMsgCondicaoComercial(mensagem)
@@ -281,28 +287,29 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
         val qtdArquivo = requireNotNull(itemPedidoOL.vo.qtdPed)
 
-        camposItem.put("BH_QTDNEGORIGINAL", qtdArquivo.toBigDecimal())
-        camposItem.put("QTDNEG", qtdArquivo.toBigDecimal())
+        camposItem["BH_QTDNEGORIGINAL"] = qtdArquivo.toBigDecimal()
+        camposItem["QTDNEG"] = qtdArquivo.toBigDecimal()
 
         if (qtdEstoque >= qtdArquivo) {
-            camposItem.put("AD_QTDESTOQUE", qtdEstoque.toBigDecimal())
+            camposItem["AD_QTDESTOQUE"] = qtdEstoque.toBigDecimal()
         } else {
             val qtdAtendida = qtdArquivo - (qtdArquivo - zeroSeNegativo(qtdEstoque))
             if (qtdAtendida < 1) {
-                camposItem.put("QTDNEG", qtdArquivo.toBigDecimal())
-                camposItem.put("BH_QTDCORTE", qtdArquivo.toBigDecimal())
+                camposItem["QTDNEG"] = qtdArquivo.toBigDecimal()
+                camposItem["BH_QTDCORTE"] = qtdArquivo.toBigDecimal()
+                camposItem["OBSERVACAO"] = "Estoque insuficiente"
                 itemPedidoOL.setFeedback(RetornoItemPedidoEnum.ESTOQUE_INSUFICIENTE, 0,
                     "Estoque insuficiente")
             } else {
-                camposItem.put("QTDNEG", qtdAtendida.toBigDecimal())
-                camposItem.put("BH_QTDCORTE", qtdArquivo.toBigDecimal() - qtdAtendida.toBigDecimal())
-                camposItem.put("AD_OLMARCARPENDENTE_NAO", "S")
+                camposItem["QTDNEG"] = qtdAtendida.toBigDecimal()
+                camposItem["BH_QTDCORTE"] = qtdArquivo.toBigDecimal() - qtdAtendida.toBigDecimal()
+                camposItem["AD_OLMARCARPENDENTE_NAO"] = "S"
             }
-            camposItem.put("AD_QTDESTOQUE", qtdEstoque.toBigDecimal())
+            camposItem["AD_QTDESTOQUE"] = qtdEstoque.toBigDecimal()
         }
 
-        camposItem.put("ATUALESTOQUE", 1.toBigDecimal())
-        camposItem.put("RESERVADO", "S")
+        camposItem["ATUALESTOQUE"] = 1.toBigDecimal()
+        camposItem["RESERVADO"] = "S"
         return qtdEstoque
     }
 
@@ -334,7 +341,9 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
 
     private fun getProdutoVO(codProd: Int?): ProdutoVO {
-        val produtoVO = produtoDAO.findByPK(requireNotNull(codProd){"Produto n\u00e3o informado."})
+        if(codProd == null)
+            throw EnviarItemPedidoCentralException("Produto não informado.")
+        val produtoVO = produtoDAO.findByPK(codProd)
         if (!produtoVO.ativo) {
             throw EnviarItemPedidoCentralException("Produto ${codProd} n\u00e3o esta ativo.")
         }
@@ -528,7 +537,14 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val auth = setAuthenticationInfo()
         val barramento = BarramentoRegra.build(CentralFaturamento::class.java, "regrasConfirmacaoSilenciosa.xml", auth)
 
-        ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento, true)
+        val temItemPendente = itemNotaDAO.find {
+            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
+            it.parameters = arrayOf(nuNota)
+        }.size > 1
+
+        if(temItemPendente){
+            ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento, true)
+        }
 
         return barramento.dadosBarramento
     }

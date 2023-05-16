@@ -5,7 +5,7 @@ package br.com.orientefarma.integradorol.commons
  */
 @Suppress("unused")
 enum class RetornoItemPedidoEnum(val codigo: Int, val expressaoRegex: Regex) {
-    CADASTRO(401, Regex("Produto.\\d.*ativo")),
+    CADASTRO(401, Regex("(Produto.\\d.*ativo)|(Produto não informado)")),
     CONDICAO(402, Regex("(PRODUTO \\d*.*PERTENCE.*COMERCIAL)|(SEM.*TABELA.*PODE SER VENDIDO)")),
     ESTOQUE_INSUFICIENTE(403, Regex("Estoque insuficiente")),
     ESTOQUE_PARCIALMENTE(404, Regex("Parcialmente atendido")),
