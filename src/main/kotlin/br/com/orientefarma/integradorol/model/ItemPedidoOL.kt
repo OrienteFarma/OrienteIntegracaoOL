@@ -4,6 +4,7 @@ import br.com.orientefarma.integradorol.commons.RetornoItemPedidoEnum
 import br.com.orientefarma.integradorol.commons.retirarTagsHtml
 import br.com.orientefarma.integradorol.dao.ItemPedidoOLDAO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
+import com.sankhya.util.StringUtils
 
 class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     private val itemPedidoOLDAO = ItemPedidoOLDAO()
@@ -21,7 +22,13 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
 
     fun setFeedback(retorno: RetornoItemPedidoEnum, qtdAtendida: Int, mensagem: String = ""){
         this.codigoRetorno = retorno
-        this.mensagem = mensagem.retirarTagsHtml().take(100)
+
+        if (StringUtils.isEmpty(mensagem)) {
+            this.mensagem = retorno.name
+        }
+        else{
+            this.mensagem = mensagem.retirarTagsHtml().take(100)
+        }
         this.qtdAtendida = qtdAtendida
     }
 

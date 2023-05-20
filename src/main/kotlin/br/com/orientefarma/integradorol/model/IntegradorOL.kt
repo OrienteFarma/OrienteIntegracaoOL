@@ -81,6 +81,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             setSessionProperty("br.com.sankhya.com.CentralCompraVenda", true)
             setSessionProperty("ItemNota.incluindo.alterando.pela.central", true)
             validarAgrupamentoMinimoEmbalagem(pedidoCentralVO)
+            totalizarPedido(pedidoCentralVO.nuNota)
             confirmarMovCentral(pedidoCentralVO.nuNota)
             pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
@@ -95,6 +96,17 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
     }
 
+    private fun totalizarPedido(nuNota: Int) {
+        try{
+            val impostosHelpper = ImpostosHelpper()
+            impostosHelpper.totalizarNota(nuNota.toBigDecimal())
+            impostosHelpper.salvarNota()
+        }catch (e:Exception){
+            e.printStackTrace()
+            throw EnviarPedidoCentralException("Erro ao totalizar o pedido $nuNota. ${e.message}. ",
+                RetornoPedidoEnum.ERRO_AO_TOTALIZAR_PEDIDO)
+        }
+    }
     private fun alterarStatusCentral(nuNota: Int, status: StatusPedidoOLEnum){
         update("UPDATE TGFCAB SET AD_STATUSOL = :STATUS WHERE NUNOTA = :NUNOTA ",
             mapOf("STATUS" to status.name, "NUNOTA" to nuNota))
@@ -292,18 +304,19 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
         if (qtdEstoque >= qtdArquivo) {
             camposItem["AD_QTDESTOQUE"] = qtdEstoque.toBigDecimal()
-        } else {
+        }
+        else {
             val qtdAtendida = qtdArquivo - (qtdArquivo - zeroSeNegativo(qtdEstoque))
             if (qtdAtendida < 1) {
                 camposItem["QTDNEG"] = qtdArquivo.toBigDecimal()
                 camposItem["BH_QTDCORTE"] = qtdArquivo.toBigDecimal()
                 camposItem["OBSERVACAO"] = "Estoque insuficiente"
+                camposItem["AD_OLMARCARPENDENTE_NAO"] = "S"
                 itemPedidoOL.setFeedback(RetornoItemPedidoEnum.ESTOQUE_INSUFICIENTE, 0,
                     "Estoque insuficiente")
             } else {
                 camposItem["QTDNEG"] = qtdAtendida.toBigDecimal()
                 camposItem["BH_QTDCORTE"] = qtdArquivo.toBigDecimal() - qtdAtendida.toBigDecimal()
-                camposItem["AD_OLMARCARPENDENTE_NAO"] = "S"
             }
             camposItem["AD_QTDESTOQUE"] = qtdEstoque.toBigDecimal()
         }
@@ -367,11 +380,11 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 // log desconto maior que o permitido
             } else {
                 itemInseridoVO.vo.set("AD_PERCDESC", percDescArquivo)
-                val valorBruto = zeroSeNulo(itemPedidoOLVO.qtdPed).toBigDecimal() * precoBase
+                val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
                 val valorDesconto = if (percDescArquivo <= BigDecimal.ZERO) {
                     BigDecimal.ZERO
                 } else {
-                    valorBruto - (valorBruto * (percDescArquivo * fatorPercentual))
+                    valorBruto * (percDescArquivo * fatorPercentual)
                 }
 
                 val vlrUnitario = precoBase - (precoBase * (percDescArquivo * fatorPercentual))

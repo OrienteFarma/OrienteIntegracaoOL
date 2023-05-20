@@ -11,6 +11,7 @@ enum class RetornoPedidoEnum(val codigo: Int) {
     CONDICAO(404),
 
     PEDIDO_DUPLICADO(501),
+    ERRO_AO_TOTALIZAR_PEDIDO(502),
     ERRO_DESCONHECIDO(599);
 
     fun getValue() = codigo.toBigDecimal()
