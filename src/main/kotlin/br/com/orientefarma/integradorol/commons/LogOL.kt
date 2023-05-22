@@ -4,11 +4,11 @@ package br.com.orientefarma.integradorol.commons
 class LogOL{
 
     companion object {
-        fun info(mensagem: String, nome: String = "IntegracaoOL"){
+        fun info(mensagem: String){
             println(mensagem)
         }
 
-        fun erro(mensagem: String, nome: String = "IntegracaoOL"){
+        fun erro(mensagem: String){
             println(mensagem)
         }
     }

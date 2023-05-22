@@ -7,6 +7,7 @@ enum class StatusPedidoOLEnum(val valor: String) {
     PENDENTE("P"),
     RETORNO("R"),
     ESPELHO("E"),
-    ERRO("O");
+    ERRO("O"),
+    CANCELADO("A");
     fun getValue() = valor
 }

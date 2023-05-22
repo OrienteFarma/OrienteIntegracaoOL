@@ -40,11 +40,12 @@ class PedidoOL(val vo: PedidoOLVO) {
         pedidoOLDAO.save(vo)
     }
 
-    fun salvarRetornoSankhya(e: EnviarPedidoCentralException){
-        setFeedback(e.retornoOL, e.mensagem)
+        fun salvarRetornoSankhya(status: StatusPedidoOLEnum, retorno: RetornoPedidoEnum, mensagem: String = ""){
+        setFeedback(retorno, mensagem)
         vo.codRetSkw = this.codigoRetorno
         vo.retSkw = this.mensagem?.retirarTagsHtml()?.take(100)
-        vo.nuNota = this.nuNotaCentral
+        vo.status = status
+        vo.nuNota = this.nuNotaCentral ?: vo.nuNota
         pedidoOLDAO.save(vo)
     }
 
@@ -57,7 +58,7 @@ class PedidoOL(val vo: PedidoOLVO) {
         pedidoOLDAO.save(vo)
     }
 
-    fun salvarErroSankhya(exception: Exception, nuNota: Int? = null){
+    fun salvarErroSankhya(exception: Exception){
         val exceptionDesconhecida =
             EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
         vo.codRetSkw = exceptionDesconhecida.retornoOL

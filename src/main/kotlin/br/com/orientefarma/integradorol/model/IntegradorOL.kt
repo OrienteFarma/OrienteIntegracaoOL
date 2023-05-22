@@ -71,6 +71,17 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         return pedidoCentralVO.nuNota
     }
 
+    fun cancelarPedido(codJustificativa: Int){
+        val nuNotaCentral = requireNotNull(this.pedidoOL.vo.nuNota){"Esse pedido não foi enviado para a central."}
+        val pedidoCentralVO = cabecalhoNotaDAO.findByPk(nuNotaCentral)
+
+        cancelarPedido(pedidoCentralVO, nuNotaCentral)
+
+        this.pedidoOL.vo.codJustificativa = codJustificativa
+        this.pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.CANCELADO, RetornoPedidoEnum.SUCESSO,
+            "Pedido cancelado pelo usuário ${AuthenticationInfo.getCurrent().name}.")
+    }
+
     private fun sumarizar(pedidoCentralVO: CabecalhoNotaVO) {
         try {
             if(tentativarConfirmacao <= 0) return
@@ -107,11 +118,11 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 RetornoPedidoEnum.ERRO_AO_TOTALIZAR_PEDIDO)
         }
     }
+
     private fun alterarStatusCentral(nuNota: Int, status: StatusPedidoOLEnum){
         update("UPDATE TGFCAB SET AD_STATUSOL = :STATUS WHERE NUNOTA = :NUNOTA ",
             mapOf("STATUS" to status.name, "NUNOTA" to nuNota))
     }
-
     private fun verificarRegrasComerciais(mensagem: String, pedidoCentralVO: CabecalhoNotaVO): Boolean {
         val ehErroFinanceiro = mensagem.contains("A somatória dos valores do financeiro")
         if(ehErroFinanceiro){
@@ -210,6 +221,14 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val itensVO = itemNotaDAO.find {
             it.where = "CODPROD = ? AND NUNOTA = ? "
             it.parameters = arrayOf(codProd, nuNota)
+        }
+        itensVO.forEach { marcarItemComoNaoPendente(it, observacao) }
+    }
+
+    private fun marcarItensComoNaoPendente(nuNota: Int, observacao: String? = null) {
+        val itensVO = itemNotaDAO.find {
+            it.where = " NUNOTA = ? "
+            it.parameters = arrayOf(nuNota)
         }
         itensVO.forEach { marcarItemComoNaoPendente(it, observacao) }
     }
@@ -352,7 +371,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         } else BigDecimal.ZERO
     }
 
-
     private fun getProdutoVO(codProd: Int?): ProdutoVO {
         if(codProd == null)
             throw EnviarItemPedidoCentralException("Produto não informado.")
@@ -362,6 +380,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
         return produtoVO
     }
+
 
     private fun tratarDesconto(itemInseridoVO: ItemNotaVO, itemPedidoOL: ItemPedidoOL) {
         val itemPedidoOLVO = itemPedidoOL.vo
@@ -480,7 +499,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         )
     }
 
-
     private fun verificarSePedidoExisteCentral(nuPedOL: String, codProjeto: Int) {
         val pedidoOL = cabecalhoNotaDAO.findByPkOL(nuPedOL, codProjeto)
         if (pedidoOL != null) {
@@ -488,6 +506,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 RetornoPedidoEnum.PEDIDO_DUPLICADO)
         }
     }
+
 
     private fun buscarCliente(pedidoOLVO: PedidoOLVO): ParceiroVO {
         val cnpjCliente = if(pedidoOLVO.cnpjCli == null){
@@ -570,6 +589,19 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         JapeSessionContext.putProperty("authInfo", info)
 
         return info
+    }
+
+    private fun cancelarPedido(pedidoCentralVO: CabecalhoNotaVO, nuNotaCentral: Int) {
+        val jaEnviadoWMS = pedidoCentralVO.vo.asString("BH_STATUS") != "Nao integrado no WMS"
+        if (jaEnviadoWMS) {
+            //todo verificar exception para o controller
+            throw IllegalStateException("<H2>Não é possível cancelar. PEDIDO JA INTEGRADO COM WMS</H2>")
+        }
+        marcarItensComoNaoPendente(nuNotaCentral, "Pedido OL Cancelado")
+        pedidoCentralVO.vo.setProperty("AD_NUMPEDIDO_OL", null)
+        pedidoCentralVO.vo.setProperty("AD_NUINTEGRACAO", null)
+        pedidoCentralVO.vo.setProperty("AD_STATUSOL", "CANCELADO")
+        cabecalhoNotaDAO.save(pedidoCentralVO)
     }
 
 }

@@ -28,4 +28,5 @@ class PedidoOLVO(vo: WrapperVO) : Pojo(vo) {
     var nuNota: Int? by Delegate()
     var nuPedCli: String? by Delegate()
     var dhInclusao: Timestamp? by Delegate()
+    var codJustificativa: Int? by Delegate()
 }
