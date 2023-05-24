@@ -2,6 +2,7 @@ package br.com.orientefarma.integradorol.controller
 
 import br.com.lugh.dao.openSession
 import br.com.orientefarma.integradorol.commons.LogOL
+import br.com.orientefarma.integradorol.commons.ParallelExecutor
 import br.com.orientefarma.integradorol.controller.dto.CancelarPedidoOLDto
 import br.com.orientefarma.integradorol.controller.dto.PedidoOLDto
 import br.com.orientefarma.integradorol.exceptions.CancelarPedidoCentralException
@@ -48,11 +49,18 @@ class IntegradorOLController {
     }
 
     fun enviarPendentesParaCentral(){
-        openSession {
+        val poolThreads = ParallelExecutor.getInstance(10)
+        try{
             val pedidoOLPendentes = PedidoOL.fromPendentes()
-            for (pedidoOLPendente in pedidoOLPendentes) {
-                enviarParaCentral(it, pedidoOLPendente, true)
+            for (pedidoOL in pedidoOLPendentes) {
+                poolThreads.addTask("Enviando para central, pedido OL ${pedidoOL.codPrj}/${pedidoOL.nuPedOL}."){
+                    openSession {
+                        enviarParaCentral(it, pedidoOL, true)
+                    }
+                }
             }
+        }finally{
+            poolThreads.executeTasks()
         }
     }
 
