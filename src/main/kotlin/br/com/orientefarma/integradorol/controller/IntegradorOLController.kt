@@ -78,8 +78,10 @@ class IntegradorOLController {
     }
 
     private fun setarVariaveisSessao() {
+        val auth = AuthenticationInfo.getCurrentOrNull() ?: AuthenticationInfo("SUP",
+            0.toBigDecimal(), 0.toBigDecimal(), 0)
         val serviceContext = ServiceContext(null)
-        serviceContext.autentication = AuthenticationInfo.getCurrent()
+        serviceContext.autentication = auth
         serviceContext.makeCurrent()
         SPBeanUtils.setupContext(serviceContext)
     }
