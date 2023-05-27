@@ -7,6 +7,12 @@ import br.com.sankhya.extensions.actionbutton.ContextoAcao
 
 @Suppress("unused")
 class EnviarParaCentralAcao : AcaoRotinaJava {
+
+    /**
+     * Na tela "Integração OL" o pedido importado do operador logístico,
+     * pode ser enviado para a central de vendas através deste botão.
+     * Só depois disso, o pedido importado estará apto a ser faturado.
+     */
     override fun doAction(contextoAcao: ContextoAcao) {
         Thread.currentThread().name = "IntegradorOL"
 

@@ -15,11 +15,22 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     fun temFeedback(): Boolean {
         return codigoRetorno != null
     }
+
+    /**
+     * Capaz de setar os dados para retorno do item de pedido OL.
+     * Por exemplo: Se o item tem DESCONTO INVALIDO ou ESTOQUE INSUFICIENTE.
+     * USADO quando somente há a mensagem de erro.
+     */
     fun setFeedback(mensagem: String, qtdAtendida: Int){
         this.mensagem = mensagem.retirarTagsHtml().take(100)
         this.qtdAtendida = qtdAtendida
     }
 
+    /**
+     * Capaz de setar os dados para retorno do item de pedido OL.
+     * Por exemplo: Se o item tem DESCONTO INVALIDO ou ESTOQUE INSUFICIENTE.
+     * USADO quando se tem o RetornoItemPedidoEnum - erro catalogado.
+     */
     fun setFeedback(retorno: RetornoItemPedidoEnum, qtdAtendida: Int, mensagem: String = ""){
         this.codigoRetorno = retorno
 
@@ -32,6 +43,10 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
         this.qtdAtendida = qtdAtendida
     }
 
+    /**
+     * Deve ser chamado APÓS setar dasdos de feedback.
+     * Este método é responsável por persistir o feedback no banco de dados.
+     */
     fun salvarRetornoItemPedidoOL() {
         val retornoItem = codigoRetorno ?: calcularCodigoRetorno()
         vo.codRetSkw = retornoItem.codigo
@@ -40,11 +55,18 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
         itemPedidoOLDAO.save(vo)
     }
 
+    /**
+     * Marca o ItemPedidoOL como NÃO pendente, sometne na tabela intermediária.
+     */
     fun marcarComoNaoPendente(){
         this.vo.pendente = false
         itemPedidoOLDAO.save(this.vo)
     }
 
+    /**
+     * Com base na mensagem de feedback, este método é capaz de calcular - utilizando REGEX - qual o código de
+     * retorno da mensagem de erro/aviso.
+     */
     private fun calcularCodigoRetorno(): RetornoItemPedidoEnum {
         for (retornoItem in RetornoItemPedidoEnum.values()) {
             if (this.mensagem.contains(retornoItem.expressaoRegex)) {
@@ -57,6 +79,9 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
         return "EnviarItemPedidoCentralException(mensagem=$mensagem)"
     }
 
+    /**
+     * Métodos Fabrica.
+     */
     companion object {
         fun fromCodProd(numPedidoOL: String, codProjeto: Int, codProd: Int): ItemPedidoOL? {
             val itemOLVO = ItemPedidoOLDAO().findByNumPedOLAndCodProd(numPedidoOL, codProjeto, codProd)

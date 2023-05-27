@@ -16,6 +16,11 @@ import br.com.sankhya.modelcore.util.SPBeanUtils
 import br.com.sankhya.ws.ServiceContext
 
 class IntegradorOLController {
+
+    /**
+     * Responsavel por chamar o model para enviar o PedidoOL para a central, bem como controlar as
+     * transações apartardas (status, principal e log de erro).
+     */
     private fun enviarParaCentral(hnd: JapeSession.SessionHandle, pedidoOL: PedidoOL, ehJob: Boolean = false): Int? {
         var nuNotaEnviado: Int? = null
         try {
