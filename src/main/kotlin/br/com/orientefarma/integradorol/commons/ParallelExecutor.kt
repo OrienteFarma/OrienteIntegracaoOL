@@ -31,6 +31,7 @@ class ParallelExecutor private constructor(threadPoolSize: Int) {
                 try {
                     task.runnable.run()
                 } catch (e: Exception) {
+                    e.printStackTrace()
                     System.err.println("Exceção ignorada na tarefa '${task.name}': ${e.message}")
                 }
             }

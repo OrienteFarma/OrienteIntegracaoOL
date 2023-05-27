@@ -12,7 +12,10 @@ class Estoque {
         val sql = NativeSql(jdbc)
         lateinit var resultSet: ResultSet
         try {
-            sql.appendSql("SELECT SUM(ESTOQUE ")
+
+            sql.appendSql("SELECT SUM(CASE WHEN DTVAL < GETDATE() THEN 0" +
+                    " ELSE ESTOQUE END  ")
+
             if (reserva) {
                 sql.appendSql("- RESERVADO")
             }
@@ -25,6 +28,7 @@ class Estoque {
                 sql.appendSql(" AND CODEMP = :CODEMP")
                 sql.setNamedParameter("CODEMP", codEmp)
             }
+
             sql.setNamedParameter("PRODUTO", codProd)
             resultSet = sql.executeQuery()
             return if (resultSet.next()) {

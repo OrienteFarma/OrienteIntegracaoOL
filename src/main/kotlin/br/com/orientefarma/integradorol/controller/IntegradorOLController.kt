@@ -79,7 +79,7 @@ class IntegradorOLController {
 
     private fun setarVariaveisSessao() {
         val auth = AuthenticationInfo.getCurrentOrNull() ?: AuthenticationInfo("SUP",
-                0.toBigDecimal(), 0.toBigDecimal(), 0)
+            0.toBigDecimal(), 0.toBigDecimal(), 0)
         val serviceContext = ServiceContext(null)
         serviceContext.autentication = auth
         serviceContext.makeCurrent()
