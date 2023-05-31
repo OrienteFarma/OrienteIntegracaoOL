@@ -16,10 +16,12 @@ import br.com.orientefarma.integradorol.commons.RetornoItemPedidoEnum
 import br.com.orientefarma.integradorol.commons.RetornoPedidoEnum
 import br.com.orientefarma.integradorol.commons.StatusPedidoOLEnum
 import br.com.orientefarma.integradorol.dao.CabecalhoNotaDAO
+import br.com.orientefarma.integradorol.dao.ProjetoIntegracaoDAO
 import br.com.orientefarma.integradorol.dao.toCabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.CabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
+import br.com.orientefarma.integradorol.dao.vo.ProjetoIntegracaoVO
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.ItemNaoInseridoException
@@ -41,6 +43,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private val itemNotaDAO = ItemNotaDAO()
     private val parceiroDAO = ParceiroDAO()
     private val produtoDAO = ProdutoDAO()
+    private  val projetoIntegracaoDAO = ProjetoIntegracaoDAO()
     private val condicaoDAO = JapeFactory.dao("AD_CONDCOMERCIAL")
 
     private val paramTOPPedido: BigDecimal
@@ -330,6 +333,10 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
         val itemInseridoVO = itemInseridoDados.first ?: throw ItemNaoInseridoException()
 
+        //Checar se deconsto do arquivo, na BH_INSPRJ
+
+
+
         tratarDesconto(itemInseridoVO, itemPedidoOL)
 
         itemNotaDAO.save(itemInseridoVO)
@@ -469,30 +476,41 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             itemInseridoVO.observacao = mensagem
             itemPedidoOL.setFeedback(RetornoItemPedidoEnum.CONDICAO, 0,mensagem)
         } else {
+
+
+
             val percDescCondicao = itemInseridoVO.vo.asBigDecimalOrZero("AD_PERCDESC")
             val percDescArquivo = itemPedidoOLVO.prodDesc ?: 0.toBigDecimal()
-            if (percDescArquivo > percDescCondicao) {
-                itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
-                itemInseridoVO.observacao = "DESCONTO INVALIDO"
-                // log desconto maior que o permitido
-            } else {
-                itemInseridoVO.vo.set("AD_PERCDESC", percDescArquivo)
-                val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
-                val valorDesconto = if (percDescArquivo <= BigDecimal.ZERO) {
-                    BigDecimal.ZERO
+
+
+            //Checa SE deconsto do arquivo, na BH_INSPRJ
+            if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj).toString() == "S") {
+                if (percDescArquivo > percDescCondicao) {
+                    itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
+                    itemInseridoVO.observacao = "DESCONTO INVALIDO"
+                    // log desconto maior que o permitido
                 } else {
-                    valorBruto * (percDescArquivo * fatorPercentual)
+                    itemInseridoVO.vo.set("AD_PERCDESC", percDescArquivo)
+                    val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
+                    val valorDesconto = if (percDescArquivo <= BigDecimal.ZERO) {
+                        BigDecimal.ZERO
+                    } else {
+                        valorBruto * (percDescArquivo * fatorPercentual)
+                    }
+
+                    val vlrUnitario = precoBase - (precoBase * (percDescArquivo * fatorPercentual))
+
+                    itemInseridoVO.vo.setProperty("AD_VLRDESC", valorDesconto)
+                    itemInseridoVO.vo.setProperty("VLRUNIT", vlrUnitario)
+                    itemInseridoVO.vo.setProperty("AD_VLRUNITCM", vlrUnitario)
+                    itemInseridoVO.vo.setProperty("VLRTOT", vlrUnitario * itemInseridoVO.qtdneg!!)
+
+
                 }
-
-                val vlrUnitario = precoBase - (precoBase * (percDescArquivo * fatorPercentual))
-
-                itemInseridoVO.vo.setProperty("AD_VLRDESC", valorDesconto)
-                itemInseridoVO.vo.setProperty("VLRUNIT", vlrUnitario)
-                itemInseridoVO.vo.setProperty("AD_VLRUNITCM", vlrUnitario)
-                itemInseridoVO.vo.setProperty("VLRTOT", vlrUnitario * itemInseridoVO.qtdneg!!)
-
-
             }
+
+
+
 
         }
     }
