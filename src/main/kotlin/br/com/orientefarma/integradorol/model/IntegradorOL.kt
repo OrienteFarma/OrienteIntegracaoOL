@@ -21,7 +21,6 @@ import br.com.orientefarma.integradorol.dao.toCabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.CabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
-import br.com.orientefarma.integradorol.dao.vo.ProjetoIntegracaoVO
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.ItemNaoInseridoException
@@ -45,6 +44,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private val produtoDAO = ProdutoDAO()
     private  val projetoIntegracaoDAO = ProjetoIntegracaoDAO()
     private val condicaoDAO = JapeFactory.dao("AD_CONDCOMERCIAL")
+    private val facadeW = EntityFacadeW()
+    private val impostohelp = ImpostosHelpper()
 
     private val paramTOPPedido: BigDecimal
     private val paraModeloPedido: BigDecimal
@@ -664,10 +665,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     @Throws(Exception::class)
     private fun incluirItensSemPreco(nuNota: BigDecimal, itens: Array<Map<String, Any?>>): BarramentoRegra.DadosBarramento? {
         try {
-            setAuthenticationInfo()
-            val barramentoRegra =  CentralNotasUtils.incluirItens(nuNota, itens.toList(),false)
-            val facadeW = EntityFacadeW()
-            val impostohelp = ImpostosHelpper()
+            val barramentoRegra = CentralNotasUtils.incluirItens(nuNota, itens.toList(),false)
             impostohelp.setForcarRecalculo(true)
             impostohelp.setSankhya(false)
 
