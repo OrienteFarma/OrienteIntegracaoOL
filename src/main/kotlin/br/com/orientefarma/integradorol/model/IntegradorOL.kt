@@ -176,6 +176,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
         val ehDocumentoFaltante = mensagem.contains("documento(s) faltante(s)")
         if (ehDocumentoFaltante) {
+            var podeTentarSumarizarNovamente = false
             val regexProdutosComDocsFaltantes = Regex(".*Produto: \\d*")
             for (matchResult in regexProdutosComDocsFaltantes.findAll(mensagem)) {
                 val codProd = matchResult.value.replace(Regex(".*Produto: "), "").toInt()
@@ -187,8 +188,9 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 val itemPedidoOL = ItemPedidoOL.fromCodProd(numPedidoOL, codProjeto, codProd)
                 itemPedidoOL?.setFeedback("Falta de documentação", 0)
                 itemPedidoOL?.salvarRetornoItemPedidoOL()
-                return true
+                podeTentarSumarizarNovamente = true
             }
+            return podeTentarSumarizarNovamente
         }
 
         val naoAtendeuMinimo = mensagem.contains("pedido não atende o valor mínimo")
@@ -688,8 +690,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      */
     @Throws(Exception::class)
     private fun confirmarMovCentral(nuNota: Int): BarramentoRegra.DadosBarramento {
-        val auth = setAuthenticationInfo()
-        val barramento = BarramentoRegra.build(CentralFaturamento::class.java, "regrasConfirmacaoSilenciosa.xml", auth)
+        val barramento = BarramentoRegra.build(CentralFaturamento::class.java,
+            "regrasConfirmacaoSilenciosa.xml", AuthenticationInfo.getCurrent())
 
         val temItemPendente = itemNotaDAO.find {
             it.where = " PENDENTE = 'S' AND NUNOTA = ? "
@@ -706,6 +708,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     /**
      * Seta propriedades de autenticação na sessão atual.
      */
+    @Deprecated("Nao deve ser usado no model")
     private fun setAuthenticationInfo(): AuthenticationInfo {
         val info = AuthenticationInfo.getCurrentOrNull()
             ?: AuthenticationInfo("SUP", BigDecimal.ZERO, BigDecimal.ZERO, 0).apply { makeCurrent() }
