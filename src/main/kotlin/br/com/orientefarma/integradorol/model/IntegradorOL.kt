@@ -487,7 +487,9 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
 
             //Checa SE deconsto do arquivo, na BH_INSPRJ
-            if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj).toString() == "S") {
+            //if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj).toString() == "S") {
+
+
                 if (percDescArquivo > percDescCondicao) {
                     itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
                     itemInseridoVO.observacao = "DESCONTO INVALIDO"
@@ -510,7 +512,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
 
                 }
-            }
+            //}
 
 
 
