@@ -78,12 +78,24 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * - Realiza a confirmação do pedido na central, bem como trata possíveis erros de documentação e afins.
      */
     fun enviarParaCentral(): Int {
-        verificarSePedidoExisteCentral(pedidoOL.nuPedOL, pedidoOL.codPrj)
+        val cabVO = cabecalhoNotaDAO.findByPkOL(pedidoOL.nuPedOL, pedidoOL.codPrj)
+        if(cabVO != null){
+            atualizarPedidoOLDadosCentral(cabVO)
+            return cabVO.nuNota
+        }
         val clienteVO = buscarCliente(pedidoOL.vo)
         val pedidoCentralVO = criarCabecalho(pedidoOL.vo, clienteVO)
         criarItensCentral(pedidoOL, pedidoCentralVO)
         sumarizar(pedidoCentralVO)
         return pedidoCentralVO.nuNota
+    }
+
+    private fun atualizarPedidoOLDadosCentral(cabVO: CabecalhoNotaVO) {
+        pedidoOL.setNuNotaCentral(cabVO.nuNota)
+        if (StatusPedidoOLEnum.ENVIANDO_CENTRAL == pedidoOL.vo.status) {
+            pedidoOL.vo.status = StatusPedidoOLEnum.PENDENTE
+        }
+        pedidoOL.save()
     }
 
     fun cancelarPedido(codJustificativa: Int){
@@ -612,17 +624,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         condicaoDAO.findByPK(condicaoComercial) ?: throw EnviarPedidoCentralException(
             "Condição Comercial $condicaoComercial não encontrada.", RetornoPedidoEnum.CONDICAO
         )
-    }
-
-    /**
-     * Com base nas PKs (nuPedOL: String, codProjeto: Int) verifica se este pedido  já foi inserido na central.
-     */
-    private fun verificarSePedidoExisteCentral(nuPedOL: String, codProjeto: Int) {
-        val pedidoOL = cabecalhoNotaDAO.findByPkOL(nuPedOL, codProjeto)
-        if (pedidoOL != null) {
-            throw EnviarPedidoCentralException("Pedido OL ja existe. Nro. Único: ${pedidoOL.nuNota}",
-                RetornoPedidoEnum.PEDIDO_DUPLICADO)
-        }
     }
 
     /**

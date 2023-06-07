@@ -90,6 +90,9 @@ class PedidoOL(val vo: PedidoOLVO) {
         pedidoOLDAO.save(this.vo)
     }
 
+    fun save(){
+        pedidoOLDAO.save(vo)
+    }
     /**
      * Métodos Fábrica.
      */
