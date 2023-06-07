@@ -499,7 +499,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
 
             //Checa SE deconsto do arquivo, na BH_INSPRJ
-            if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj).toString() == "S") {
+            if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj) == "S") {
 
 
                 if (percDescArquivo > percDescCondicao) {
