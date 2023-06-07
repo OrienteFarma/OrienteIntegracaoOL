@@ -171,13 +171,13 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * o item eh marcado como nao pendente, e tenta-se confirmar novamente os itens restantes.
      */
     private fun verificarRegrasComerciais(mensagem: String, pedidoCentralVO: CabecalhoNotaVO): Boolean {
-        val ehErroFinanceiro = mensagem.contains("A somatória dos valores do financeiro")
+        val ehErroFinanceiro = mensagem.contains("A somat\u00f3ria dos valores do financeiro")
         if(ehErroFinanceiro){
             pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             return false
         }
 
-        val ehNaoPertenceCondicaoComercial = mensagem.contains("não pertence a condição comercial")
+        val ehNaoPertenceCondicaoComercial = mensagem.contains("n\u00e3o pertence a condi\u00e7\u00e3o comercial")
         if (ehNaoPertenceCondicaoComercial) {
             val codProd = extrairCodigoProdutoPorMsgCondicaoComercial(mensagem)
             if (codProd != null) {
@@ -205,7 +205,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             return podeTentarSumarizarNovamente
         }
 
-        val naoAtendeuMinimo = mensagem.contains("pedido não atende o valor mínimo")
+        val naoAtendeuMinimo = mensagem.contains("pedido n\u00e3o atende o valor m\u00ednimo")
         if(naoAtendeuMinimo){
             pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE, RetornoPedidoEnum.CONDICAO, mensagem)
         }
