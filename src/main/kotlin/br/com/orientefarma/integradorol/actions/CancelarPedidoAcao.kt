@@ -8,8 +8,6 @@ import br.com.sankhya.extensions.actionbutton.ContextoAcao
 
 class CancelarPedidoAcao: AcaoRotinaJava {
     override fun doAction(contextoAcao: ContextoAcao) {
-        Thread.currentThread().name = "IntegradorOL"
-
         if(contextoAcao.linhas.isEmpty()){
             contextoAcao.setMensagemRetorno("Selecione ao menos um pedido.")
             return

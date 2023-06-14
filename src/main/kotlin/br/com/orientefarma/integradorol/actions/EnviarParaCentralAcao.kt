@@ -14,8 +14,6 @@ class EnviarParaCentralAcao : AcaoRotinaJava {
      * Só depois disso, o pedido importado estará apto a ser faturado.
      */
     override fun doAction(contextoAcao: ContextoAcao) {
-        Thread.currentThread().name = "IntegradorOL"
-
         if(contextoAcao.linhas.isEmpty()){
             contextoAcao.setMensagemRetorno("Selecione ao menos um pedido.")
             return
