@@ -8,6 +8,7 @@ val skwVersion = "4.14b262"
 plugins {
     kotlin("jvm") version "1.5.31"
     kotlin("kapt") version "1.5.31"
+    java
 }
 
 buildscript{
@@ -56,6 +57,12 @@ dependencies {
     implementation("javax.servlet", "servlet-api", "2.5")
     implementation("br.com.lughconsultoria", "lugh-lib", lughVersion )
 
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testImplementation("org.mockito:mockito-core:3.+")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
+    testImplementation(kotlin("test"))
+
+
 }
 
 tasks.withType(JavaCompile::class.java) {
@@ -64,4 +71,8 @@ tasks.withType(JavaCompile::class.java) {
 
 configure<JavaPluginConvention> {
     sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
