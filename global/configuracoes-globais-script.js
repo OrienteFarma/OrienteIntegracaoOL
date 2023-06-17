@@ -262,10 +262,10 @@ function mudaStatusPedido(nuNota, status) {
             return;
         }
 
-        var pedidoNotaOrig = encontrarRegistroParam("CompraVendavariosPedido", "NUNOTAORIG = ?", [nuNota]);
+        var pedidoNotaOrig = encontrarRegistroParam("CompraVendavariosPedido", "NUNOTA = ?", [nuNota]);
         if (pedidoNotaOrig) {
             log("Mudando status do pedido nunota = "+nuNota +" para  "+ status +", arquivo gerado "+f)
-            var pedidoNotaCab = encontrarRegistroParam("CabecalhoNota", " NUNOTA = ?", [pedidoNotaOrig.getCampo("NUNOTA")]);
+            var pedidoNotaCab = encontrarRegistroParam("CabecalhoNota", " NUNOTA = ?", [pedidoNotaOrig.getCampo("NUNOTAORIG")]);
             pedidoNotaCab.setCampo("AD_STATUSOL", status);
             pedidoNotaCab.save();
             return;
