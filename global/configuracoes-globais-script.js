@@ -1,4 +1,5 @@
 var regexDocumentosFaltantes = new RegExp('.*Produto: ([0-9]+).*', 'g');
+var_BREAK = false
 if(typeof var_DEADLOCK != 'undefined')
     mostraErro(" [integracao] ABORTADO DEVIDO A DEADLOCK ANTERIOR. Nro. OL: "+var_pedidoOL)
 
@@ -20,7 +21,10 @@ var_pedidoJaExisteNaBase = false;
 var_SUCESSO = true;
 var_ehParceiroNovo = false;
 var_ehParceiroInativo = false;
-SNK_NOMEARQUIVO = getCampoArquivo("SNK_NOMEARQUIVO")
+SNK_NOMEARQUIVO = getCampoArquivo("SNK_NOMEARQUIVO");
+SNK_DIRETORIO = getCampoArquivo("SNK_DIRETORIO");
+
+
 
 
 function getParceiro(cnpjCampoArquivo) {
@@ -28,18 +32,24 @@ function getParceiro(cnpjCampoArquivo) {
 
     var_RODOUPARC = true
     log("[CONSULTA CLIENTE] Primeira tentativa: " + cnpjCampoArquivo);
-    var parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ?", [cnpjCampoArquivo]);
+    var parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ? AND ATIVO = 'S' ", [cnpjCampoArquivo]);
 
     if (!parceiro) {
 
         log("[CONSULTA CLIENTE] Segunda tentativa: " + cnpjCampoArquivo);
-        parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ?", [Number(cnpjCampoArquivo).toString()]);
+        parceiro = encontrarRegistroParam('Parceiro', "CGC_CPF = ? AND ATIVO = 'S'", [Number(cnpjCampoArquivo).toString()]);
 
         if (!parceiro) {
-            gravaLogCabecalhoSankhya("PARCEIRO NÃO ENCONTRADO", "CADASTRO", 3);
+            gravaLogCabecalhoSankhya("PARCEIRO NAO ENCONTRADO", "CADASTRO", 3);
 
             log("[CONSULTA CLIENTE] Cliente nao cadastrado: " + cnpjCampoArquivo);
-            try{
+            parceiroCriado();
+
+            //var_BREAK = true;
+            //VAR_INGORE = true
+            return
+
+            /* try{
 
                 parceiro = novoParceiroDadosSefaz(cnpjCampoArquivo);
                 log("[CONSULTA CLIENTE] Cliente registrado: " + cnpjCampoArquivo);
@@ -54,10 +64,10 @@ function getParceiro(cnpjCampoArquivo) {
                 VAR_INGORE = true
                 return
 
-            }
+            } */
         }
     }
-    if(parceiro.getCampo('ATIVO') == "N" ){
+    /*  if(parceiro.getCampo('ATIVO') == "N" ){
 
 
         var_ehParceiroInativo = true;
@@ -66,12 +76,18 @@ function getParceiro(cnpjCampoArquivo) {
     }
 
     parceiro.setCampo("CLIENTE", "S");
-    parceiro.save();
+    parceiro.save(); */
 
-    getPrazoParceiro(parceiro.getCampo("CODPARC"));
+    if(parceiro){
+        log("[CONSULTA CLIENTE] Parceiro encontrado: " + parceiro.getCampo("CODPARC") + ", Ativo? -> "+ parceiro.getCampo('ATIVO') )
 
-    var_VENDEDOR = parceiro.getCampo('CODVEND');
-    var_CODPARC = parceiro.getCampo("CODPARC");
+        getPrazoParceiro(parceiro.getCampo("CODPARC"));
+
+        var_VENDEDOR = parceiro.getCampo('CODVEND');
+        var_CODPARC = parceiro.getCampo("CODPARC");
+    }
+
+
     return var_CODPARC;
 }
 
@@ -224,8 +240,13 @@ function consultaPedido(var_pedidoOL) {
 } // Veririca se o numero de pedido OL já foi registrado anteriormente
 
 function mudaStatusPedido(nuNota, status) {
+
+
     try {
         setJapeSessionVar("br.com.sankhya.bh.integrou.wms", true);
+
+        log("[integracao] Arquivo: "+ SNK_NOMEARQUIVO+ ", diretorio: "+SNK_DIRETORIO)
+
         log("[integracao] Executando metodo mudaStatusPedido: Parametros[nunota: "+nuNota+ ", status:"+status+"]" )
 
         var pedido = encontrarRegistroParam("CabecalhoNota", " NUNOTA = ?", [nuNota]);
@@ -256,6 +277,54 @@ function mudaStatusPedido(nuNota, status) {
     }
 } // Muda o status do pedido (PENDENTE, RETORNO, ESPELHO)
 // Muda o status do pedido (PENDENTE, RETORNO, ESPELHO)
+
+
+function mudaStatusPedidoPorPedidoOL(pedidoOL, nuIntegracao, status) {
+
+
+    try {
+        setJapeSessionVar("br.com.sankhya.bh.integrou.wms", true);
+
+        log("[integracao] Arquivo: "+ SNK_NOMEARQUIVO+ ", diretorio: "+SNK_DIRETORIO)
+
+        log("[integracao] Executando metodo mudaStatusPedidoPorPedidoOL(): Parametros[pedidoOL: "+pedidoOL+ ", nuIntegracao: "+nuIntegracao+", status:"+status+"]" )
+
+        var pedidoVenda = encontrarRegistroParam("CabecalhoNota", " AD_NUMPEDIDO_OL = ? AND AD_NUINTEGRACAO = ? AND TIPMOV = 'P' ", [pedidoOL, nuIntegracao]);
+
+        var f = "UNDEFINED"
+
+        if(typeof SNK_NOMEARQUIVO != 'undefined') {
+            f = SNK_NOMEARQUIVO
+        }
+        if (pedidoVenda) {
+
+            var nuNotaPedidoVenda = pedidoVenda.getCampo("NUNOTA");
+
+            log("Mudando status do pedido nunota = "+nuNotaPedidoVenda +" para  "+ status +", arquivo gerado "+ f)
+            pedidoVenda.setCampo("AD_STATUSOL", status);
+            pedidoVenda.save();
+
+
+            var relacaoPedidoNota = encontrarRegistroParam("CompraVendavariosPedido", "NUNOTAORIG = ?", [nuNotaPedidoVenda]);
+
+            if (relacaoPedidoNota) {
+                log("Mudando status do pedido nunota = "+nuNotaPedidoVenda +" para  "+ status +", arquivo gerado "+f)
+                var notaVenda = encontrarRegistroParam("CabecalhoNota", " NUNOTA = ?", [relacaoPedidoNota.getCampo("NUNOTA")]);
+                notaVenda.setCampo("AD_STATUSOL", status);
+                notaVenda.save();
+
+            }
+
+            return;
+        }
+
+
+        log("[integracao] Nao localizou documento para mudar o status do pedido pedidoOL = "+pedidoOL+ " para "+ status )
+
+    } catch (err) {
+        gravaLogCabException("MUDASTATUSPEDIDO", "EXCECAO EM " + status + ": " + err);
+    }
+} // Muda o status do pedido (PENDENTE, RETORNO, ESPELHO)
 
 function validaPendenciaItems() {
 
@@ -799,10 +868,11 @@ function lancarItem() {
                 //var vlrUnitario = precoBase - (precoBase * (toBigDecimal(descontoArquivo) / 100));
 
                 //melhorada para caso o desconto do arquivo for zero. Estava gerando erro de calculo, com valor NaN;
-                var descontoBruto =   toBigDecimal(descontoArquivo) == 0 ? 0 :  valorBruto - (valorBruto * (toBigDecimal(descontoArquivo) / 100));
+                var descontoBruto =   toBigDecimal(descontoArquivo) == 0 ? 0 :   valorBruto * (toBigDecimal(descontoArquivo) / 100);
                 log("[integracao] Desconto bruto " +descontoBruto);
 
-                var vlrUnitario = toBigDecimal(descontoArquivo) == precoBase ? 0 :   precoBase - (precoBase * (toBigDecimal(descontoArquivo) / 100));
+                //var vlrUnitario = toBigDecimal(descontoArquivo) == precoBase ? 0 :   precoBase - (precoBase * (toBigDecimal(descontoArquivo) / 100));
+                var vlrUnitario =  precoBase - (precoBase * (toBigDecimal(descontoArquivo) / 100));
 
                 log("[integracao] Valor unitario " +vlrUnitario);
 
@@ -1001,7 +1071,7 @@ function totalizar(nuNota){
 
 function pedidoJaExiste(pedidoOL, codIntegracao) {
 
-    log('[INTEGRACAO OL]: Consultando se o pedido '+var_pedidoOL+'ja existe na base, gravaItemIntegracao()')
+    log('[INTEGRACAO OL]: Consultando se o pedido '+pedidoOL+'ja existe na base, gravaItemIntegracao()')
     var pedidoIntegracao = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND  CODPRJ = ?", [pedidoOL, codIntegracao]);
     if (pedidoIntegracao) {
         return true;
@@ -1032,14 +1102,19 @@ function gravaCabecalhoIntegracao(cabecalho) {
         cabecalhoIntegracao.setCampo("NUPEDCLI", cabecalho.nroPedidoCliente);
         cabecalhoIntegracao.setCampo("DHINCLUSAO", globalDateToTimestamp(new Date()));
         cabecalhoIntegracao.setCampo("STATUS", 'I');
+
+        if(typeof  cabecalho.cnpjDistribuidor != 'undefined'){
+            cabecalhoIntegracao.setCampo("CNPJDIST", cabecalho.cnpjDistribuidor);
+        }
+
         //cabecalhoIntegracao.setCampo("NUNOTA", var_pedidoOL);
         //cabecalhoIntegracao.setCampo("RETSKW", var_pedidoOL);
         //cabecalhoIntegracao.setCampo("CODRETSKW", var_pedidoOL);
         cabecalhoIntegracao.save();
 
-        log('[INTEGRACAO OL]: Cabeçalho do pedido '+var_pedidoOL+' salvo, gravaCabecalhoIntegracao(): ')
+        log('[INTEGRACAO OL]: Cabeçalho do pedido '+cabecalho.nroPedidoOL+' salvo, gravaCabecalhoIntegracao(): ')
     } catch (err) {
-        log('[INTEGRACAO OL]: Erro na inserção do cabeçalho do pedido '+var_pedidoOL+', gravaCabecalhoIntegracao(): '+ err)
+        log('[INTEGRACAO OL]: Erro na inserção do cabeçalho do pedido '+cabecalho.nroPedidoOL+', gravaCabecalhoIntegracao(): '+ err)
         var_SUCESSO = false;
     }
 }
@@ -1052,6 +1127,8 @@ function gravaItemIntegracao(item) {
     }
 
     try {
+        log('[INTEGRACAO OL]: Buscando cabecalho da tabela meio: Pedido OL ->  '+item.nroPedidoOL+', Integracao -> '+item.codIntegracao);
+
         var cabTabelaMeio = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND CODPRJ = ? ",
             [item.nroPedidoOL, toBigDecimal(item.codIntegracao)]);
 
@@ -1075,6 +1152,9 @@ function gravaItemIntegracao(item) {
             }
 
         }
+        else{
+            log('[INTEGRACAO OL]: Pedido não encontrado na tabela meio: Pedido OL ->  '+item.nroPedidoOL+', Integracao -> '+item.codIntegracao)
+        }
 
     } catch (err) {
         log('[INTEGRACAO OL] Erro na inserção de item no pedido de integração '+item.ean+', gravaItemIntegracao(): '+ err)
@@ -1083,6 +1163,8 @@ function gravaItemIntegracao(item) {
 }
 
 function gravaStatusTabelaMeio(nuNota, statusDestino){
+
+    log('[INTEGRACAO OL] alterando status tabela meio por nunota, gravaStatusTabelaMeioPorNunota(): Nunota -> '+ nuNota+' , Status ->' + statusDestino);
     var pedidoTabelaMeio = encontrarRegistroParam("AD_INTCABOL", "NUNOTA = ?", [nuNota]);
     if (pedidoTabelaMeio) {
         pedidoTabelaMeio.setCampo('STATUS', statusDestino)
@@ -1090,9 +1172,37 @@ function gravaStatusTabelaMeio(nuNota, statusDestino){
     }
 }
 
+/*function gravaStatusTabelaMeiopPorPedidoOL(pedidoOL, nuIntegracao, statusDestino){
+
+    log('[INTEGRACAO OL] alterando status tabela meio por pedidoOL, gravaStatusTabelaMeioPorPedidoOL(): pedidoOL -> '+ pedidoOL);
+    var pedidoTabelaMeio = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND CODPRJ = ? ", [pedidoOL, nuIntegracao]);
+    if (pedidoTabelaMeio) {
+        pedidoTabelaMeio.setCampo('STATUS', statusDestino)
+        pedidoTabelaMeio.save()
+    }
+}*/
+
+
+function gravaStatusTabelaMeioPorPedidoOL(var_pedidoOL, codPrj, statusDestino){
+
+    log('[INTEGRACAO OL] alterando status tabela meio por pedidoOL, gravaStatusTabelaMeioPorPedidoOL(): Pedido OL -> '+ var_pedidoOL +', Integracao -> '+ codPrj+', Status ->' + statusDestino );
+    var pedidoTabelaMeio = encontrarRegistroParam("AD_INTCABOL", "NUPEDOL = ? AND CODPRJ = ?", [var_pedidoOL, codPrj ]);
+
+
+    if (pedidoTabelaMeio) {
+        log('[INTEGRACAO OL] Pedido encontrado: Nunota -> ' + pedidoTabelaMeio.getCampo("NUNOTA") )
+        pedidoTabelaMeio.setCampo('STATUS', statusDestino)
+        pedidoTabelaMeio.save()
+    }
+
+}
+
+
 function gravaStatusTabelaMeioComoRetorno(nuNota){
     gravaStatusTabelaMeio(nuNota, 'R')
 }
+
+
 
 function gravaStatusTabelaMeioComoEspelho(nuNota){
     gravaStatusTabelaMeio(nuNota, 'E')
