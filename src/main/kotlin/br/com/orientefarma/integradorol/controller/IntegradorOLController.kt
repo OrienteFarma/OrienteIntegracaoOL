@@ -39,6 +39,12 @@ class IntegradorOLController {
             hnd.execWithTX {
                 pedidoOL.salvarErroSankhya(e)
             }
+        }finally {
+            if(nuNotaEnviado != null){
+                hnd.execWithTX {
+                    pedidoOL.salvarNuNotaCentral(requireNotNull(nuNotaEnviado))
+                }
+            }
         }
         return nuNotaEnviado
     }

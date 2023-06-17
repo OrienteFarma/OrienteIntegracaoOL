@@ -116,7 +116,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      */
     private fun sumarizar(pedidoCentralVO: CabecalhoNotaVO) {
         try {
-            pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
             if(tentativarConfirmacao <= 0) return
             tentativarConfirmacao--
             marcarComoNaoPendenteFormaTardia(pedidoCentralVO)
@@ -126,7 +125,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             setSessionProperty("ItemNota.incluindo.alterando.pela.central", true)
             validarAgrupamentoMinimoEmbalagem(pedidoCentralVO)
             totalizarPedido(pedidoCentralVO.nuNota)
-            confirmarMovCentral(pedidoCentralVO.nuNota)
+            simularConfirmacaoCentral(pedidoCentralVO.nuNota)
             pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
         } catch (e: Exception) {
@@ -693,6 +692,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * Chama a rotina de confirmação nativa da central, caso exista item pendente no pedido.
      */
     @Throws(Exception::class)
+    @Deprecated("use simularConfirmacaoNota")
     private fun confirmarMovCentral(nuNota: Int): BarramentoRegra.DadosBarramento {
         val barramento = BarramentoRegra.build(CentralFaturamento::class.java,
             "regrasConfirmacaoSilenciosa.xml", AuthenticationInfo.getCurrent())
@@ -707,6 +707,22 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
 
         return barramento.dadosBarramento
+    }
+
+    @Throws(java.lang.Exception::class)
+    private fun simularConfirmacaoCentral(nuNota: Int) {
+        val barramento = BarramentoRegra.build(CentralFaturamento::class.java,
+            "regrasConfirmacaoSilenciosa.xml", AuthenticationInfo.getCurrent())
+
+        val temItemPendente = itemNotaDAO.find {
+            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
+            it.parameters = arrayOf(nuNota)
+        }.size > 1
+
+        if(temItemPendente){
+            ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento,
+                false, true)
+        }
     }
 
     /**
