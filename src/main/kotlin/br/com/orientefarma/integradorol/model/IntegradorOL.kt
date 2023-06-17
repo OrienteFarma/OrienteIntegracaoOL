@@ -116,6 +116,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      */
     private fun sumarizar(pedidoCentralVO: CabecalhoNotaVO) {
         try {
+            pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
             if(tentativarConfirmacao <= 0) return
             tentativarConfirmacao--
             marcarComoNaoPendenteFormaTardia(pedidoCentralVO)

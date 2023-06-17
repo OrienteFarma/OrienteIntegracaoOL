@@ -36,6 +36,7 @@ class PedidoOL(val vo: PedidoOLVO) {
      */
     fun setNuNotaCentral(nuNota: Int){
         this.nuNotaCentral = nuNota
+        this.vo.nuNota = nuNota
     }
 
     /**
@@ -93,6 +94,12 @@ class PedidoOL(val vo: PedidoOLVO) {
     fun save(){
         pedidoOLDAO.save(vo)
     }
+
+    fun salvarNuNotaCentral(nuNota: Int) {
+        setNuNotaCentral(nuNota)
+        save()
+    }
+
     /**
      * Métodos Fábrica.
      */
