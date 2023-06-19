@@ -136,6 +136,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             }
         } finally {
             alterarStatusCentral(pedidoCentralVO.nuNota, StatusPedidoOLEnum.PENDENTE)
+            pedidoOL.save()
         }
     }
 
