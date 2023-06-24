@@ -1,5 +1,6 @@
 package br.com.orientefarma.integradorol.actions
 
+import br.com.orientefarma.integradorol.commons.StatusPedidoOLEnum
 import br.com.orientefarma.integradorol.controller.IntegradorOLController
 import br.com.orientefarma.integradorol.controller.dto.PedidoOLDto
 import br.com.sankhya.extensions.actionbutton.AcaoRotinaJava
@@ -9,9 +10,9 @@ import br.com.sankhya.extensions.actionbutton.ContextoAcao
 class EnviarParaCentralAcao : AcaoRotinaJava {
 
     /**
-     * Na tela "Integração OL" o pedido importado do operador logístico,
-     * pode ser enviado para a central de vendas através deste botão.
-     * Só depois disso, o pedido importado estará apto a ser faturado.
+     * Na tela "Integraï¿½ï¿½o OL" o pedido importado do operador logï¿½stico,
+     * pode ser enviado para a central de vendas atravï¿½s deste botï¿½o.
+     * Sï¿½ depois disso, o pedido importado estarï¿½ apto a ser faturado.
      */
     override fun doAction(contextoAcao: ContextoAcao) {
         if(contextoAcao.linhas.isEmpty()){
@@ -24,15 +25,33 @@ class EnviarParaCentralAcao : AcaoRotinaJava {
             return
         }
 
-        val pedidoOlDto = PedidoOLDto.fromLinhas(contextoAcao.linhas[0])
+        val registro = contextoAcao.linhas[0]
+
+        val status = registro.getCampo("STATUS").toString()
+        if(!podeEnviarParaCentral(status)){
+            val mensagem = """
+                Somente pedidos em "Importado", "Enviado para Central" ou "Pendente" podem ser enviados.
+            """.trimIndent()
+            contextoAcao.setMensagemRetorno(mensagem)
+            return
+        }
+
+        val pedidoOlDto = PedidoOLDto.fromLinhas(registro)
 
         IntegradorOLController().enviarParaCentral(pedidoOlDto)
 
         if(pedidoOlDto.size > 1 || pedidoOlDto.isEmpty() || pedidoOlDto.first().nuNotaEnviado == null){
-            contextoAcao.setMensagemRetorno("Processamento concluído.")
+            contextoAcao.setMensagemRetorno("Processamento concluï¿½do.")
             return
         }else{
             contextoAcao.setMensagemRetorno("Pedido ${pedidoOlDto.first().nuNotaEnviado} criado.")
         }
+    }
+
+    fun podeEnviarParaCentral(status: String): Boolean {
+        return status == StatusPedidoOLEnum.IMPORTANDO.valor ||
+                status == StatusPedidoOLEnum.ENVIANDO_CENTRAL.valor ||
+                status == StatusPedidoOLEnum.PENDENTE.valor ||
+                status == StatusPedidoOLEnum.ERRO.valor
     }
 }
