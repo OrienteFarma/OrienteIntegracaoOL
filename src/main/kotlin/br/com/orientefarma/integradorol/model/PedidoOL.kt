@@ -57,8 +57,10 @@ class PedidoOL(val vo: PedidoOLVO) {
     fun salvarErroSankhya(exception: Exception){
         val exceptionDesconhecida =
             EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
+        val mensagem = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
+        setFeedback(exceptionDesconhecida.retornoOL, mensagem)
         vo.codRetSkw = exceptionDesconhecida.retornoOL
-        vo.retSkw = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
+        vo.retSkw = mensagem
         vo.status = StatusPedidoOLEnum.ERRO
         vo.nuNota = this.nuNotaCentral
         pedidoOLDAO.save(vo)
@@ -68,6 +70,7 @@ class PedidoOL(val vo: PedidoOLVO) {
      * Usado para salvar retorno de sucesso no envio para a central de vendas.
      */
     fun marcarSucessoEnvioCentral(nuNota: Int) {
+        setFeedback(RetornoPedidoEnum.SUCESSO)
         setNuNotaCentral(nuNota)
         vo.codRetSkw = RetornoPedidoEnum.SUCESSO
         vo.retSkw = ""
