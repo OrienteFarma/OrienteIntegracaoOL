@@ -61,21 +61,21 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val nomeParamTOPPedido = "OR_OLTOPPED"
         paramTOPPedido = tryOrNull {
             MGECoreParameter.getParameter(nomeParamTOPPedido).toString().toBigDecimal()
-        } ?: throw IllegalStateException("Verifique o parï¿½metro $nomeParamTOPPedido.")
+        } ?: throw IllegalStateException("Verifique o parãmetro $nomeParamTOPPedido.")
 
         val nomeParamModeloPedido = "OR_OLMODPED"
         paraModeloPedido = tryOrNull {
             MGECoreParameter.getParameter(nomeParamModeloPedido).toString().toBigDecimal()
-        } ?: throw IllegalStateException("Verifique o parï¿½metro $nomeParamModeloPedido.")
+        } ?: throw IllegalStateException("Verifique o parãmetro $nomeParamModeloPedido.")
     }
 
     /**
      * Envia o PedidoOL para a central com os passos:
-     * - Verifica se pedido jï¿½ foi integrado atravï¿½s das chaves do pedido OL
-     * - Verifica se o cliente estï¿½ cadastrado e ativo;
-     * - Cria o cabeï¿½alho marcando com o AD_STATUSOL = Importando
-     * - Cria os itens tratando estoque, desconto e motivos de nï¿½o atendimento
-     * - Realiza a confirmaï¿½ï¿½o do pedido na central, bem como trata possï¿½veis erros de documentaï¿½ï¿½o e afins.
+     * - Verifica se pedido já foi integrado atrav?s das chaves do pedido OL
+     * - Verifica se o cliente está cadastrado e ativo;
+     * - Cria o cabe?alho marcando com o AD_STATUSOL = Importando
+     * - Cria os itens tratando estoque, desconto e motivos de n?o atendimento
+     * - Realiza a confirmação do pedido na central, bem como trata possíveis erros de documentação e afins.
      */
     fun enviarParaCentral(): Int {
         val cabVO = cabecalhoNotaDAO.findByPkOL(pedidoOL.nuPedOL, pedidoOL.codPrj)
@@ -99,14 +99,14 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     fun cancelarPedido(codJustificativa: Int){
-        val nuNotaCentral = requireNotNull(this.pedidoOL.vo.nuNota){"Esse pedido nï¿½o foi enviado para a central."}
+        val nuNotaCentral = requireNotNull(this.pedidoOL.vo.nuNota){"Esse pedido não foi enviado para a central."}
         val pedidoCentralVO = cabecalhoNotaDAO.findByPk(nuNotaCentral)
 
         cancelarPedido(pedidoCentralVO, nuNotaCentral)
 
         this.pedidoOL.vo.codJustificativa = codJustificativa
         this.pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.CANCELADO, RetornoPedidoEnum.SUCESSO,
-            "Pedido cancelado pelo usuï¿½rio ${AuthenticationInfo.getCurrent().name}.")
+            "Pedido cancelado pelo usuário ${AuthenticationInfo.getCurrent().name}.")
     }
 
     /**
@@ -141,7 +141,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Em alguns casos, em consequencia de interferï¿½ncia de outras personalizaï¿½ï¿½es,
+     * Em alguns casos, em consequencia de interferência de outras personaliza??es,
      * os valores precisam ser recalculados. Acreditamos que seja sobre ST.
      */
     private fun totalizarPedido(nuNota: Int) {
@@ -199,7 +199,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 val numPedidoOL = pedidoCentralVO.vo.asString("AD_NUMPEDIDO_OL") ?: "0"
                 val codProjeto = pedidoCentralVO.vo.asInt("AD_NUINTEGRACAO")
                 val itemPedidoOL = ItemPedidoOL.fromCodProd(numPedidoOL, codProjeto, codProd)
-                itemPedidoOL?.setFeedback("Falta de documentaï¿½ï¿½o", 0)
+                itemPedidoOL?.setFeedback("Falta de documentação", 0)
                 itemPedidoOL?.salvarRetornoItemPedidoOL()
                 podeTentarSumarizarNovamente = true
             }
@@ -220,7 +220,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Capaz de, com base numa mensagem, extrair agrupamento de nï¿½meros.
+     * Capaz de, com base numa mensagem, extrair agrupamento de números.
      * Neste caso, utilizado para retornar o CODPROD da mensagem.
      */
     private fun extrairCodigoProdutoPorMsgCondicaoComercial(mensagem: String): Int? {
@@ -233,7 +233,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Valida o agrupamento mï¿½nimo para venda.
+     * Valida o agrupamento mínimo para venda.
      * Exemplo: Cx de Dipirona com 100
      * Num pedido de 150, 50 devem ser cortados.
      */
@@ -277,7 +277,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Marcar o item como Nï¿½O pendente na central, bem como adiciona uma mensagem no campo observaï¿½ï¿½o.
+     * Marcar o item como NAO pendente na central, bem como adiciona uma mensagem no campo observa??o.
      */
     private fun marcarItemComoNaoPendente(itemNotaVO: ItemNotaVO, observacao: String? = null) {
         itemNotaVO.observacao = observacao ?: itemNotaVO.observacao
@@ -286,7 +286,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Marcar TODOS os itens do PRODUTO como Nï¿½O pendente na central, bem como adiciona uma mensagem no campo observaï¿½ï¿½o.
+     * Marcar TODOS os itens do PRODUTO como NaO pendente na central, bem como adiciona uma mensagem no campo observação.
      * Lembrando que este processo precisa ser feito item a item - trigger de estoque Sankhya.
      */
     private fun marcarItemComoNaoPendente(nuNota: Int, codProd: Int, observacao: String? = null) {
@@ -298,7 +298,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Marcar TODOS os itens do PEDIDO como Nï¿½O pendente na central, bem como adiciona uma mensagem no campo observaï¿½ï¿½o.
+     * Marcar TODOS os itens do PEDIDO como NAO pendente na central, bem como adiciona uma mensagem no campo observação.
      * Lembrando que este processo precisa ser feito item a item - trigger de estoque Sankhya.
      */
     private fun marcarTodosItensComoNaoPendente(nuNota: Int, observacao: String? = null) {
@@ -311,8 +311,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Busca todos os itens do Pedido OL e incia a criaï¿½ï¿½o na central de um a um.
-     * Alï¿½m disso, gerencia os erros e os converte para feedback na tela de OL.
+     * Busca todos os itens do Pedido OL e incia a criação na central de um a um.
+     * Além disso, gerencia os erros e os converte para feedback na tela de OL.
      */
     private fun criarItensCentral(pedidoOL: PedidoOL, pedidoCentralVO: CabecalhoNotaVO){
         val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
@@ -328,7 +328,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Cria o item na central de vendas, validando as seguintes regras: campos bï¿½sicos, valida estoque, valida desconto
+     * Cria o item na central de vendas, validando as seguintes regras: campos básicos, valida estoque, valida desconto
      * e calcula o status de retorno, por exemplo: se foi atendido por completo ou parcialmente.
      */
     private fun criarItemCentral(itemPedidoOL: ItemPedidoOL, pedidoCentralVO: CabecalhoNotaVO){
@@ -372,7 +372,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
     /**
      * Com base na quantidade de estoque e quantidade atendida, calcula qual eh o retorno de atendimento do item.
-     * Estoque insuficiente, nï¿½o atendido, atendido parcialmente ou atendido totalmente.
+     * Estoque insuficiente, não atendido, atendido parcialmente ou atendido totalmente.
      */
     private fun calcularRetornoAtendimentoItem(qtdEstoque: Int, qtdPedida: Int, qtdAtendida: Int): RetornoItemPedidoEnum {
         return if (qtdEstoque <= 0) {
@@ -392,7 +392,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
     /**
      * Responsavel por verificar o quanto da quantidade solicitada poderemos atender.
-     * Alï¿½m disso, preenche o campo corte (adcional), o motivo de corte e a quantidade que realmente
+     * Além disso, preenche o campo corte (adcional), o motivo de corte e a quantidade que realmente
      * sera atendida.
      */
     private fun preencherCamposEstoque(pedidoCentralVO: CabecalhoNotaVO, itemPedidoOL: ItemPedidoOL,
@@ -457,7 +457,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Buscar o cï¿½d. de local padrï¿½o no cadastro do produto.
+     * Buscar o cód. de local padr?o no cadastro do produto.
      */
     private fun getCodLocalProduto(produtoVO: ProdutoVO): BigDecimal {
         return if (produtoVO.usalocal && produtoVO.codlocalpadrao != null) {
@@ -466,11 +466,11 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Com base no cï¿½d. de produto, retorna uma instï¿½ncia de ProdutoVO
+     * Com base no cód. de produto, retorna uma inst?ncia de ProdutoVO
      */
     private fun getProdutoVO(codProd: Int?): ProdutoVO {
         if(codProd == null)
-            throw EnviarItemPedidoCentralException("Produto nï¿½o informado.")
+            throw EnviarItemPedidoCentralException("Produto não informado.")
         val produtoVO = produtoDAO.findByPK(codProd)
         if (!produtoVO.ativo) {
             throw EnviarItemPedidoCentralException("Produto ${codProd} n\u00e3o esta ativo.")
@@ -480,14 +480,14 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
     /**
      * Responsavel por calcular o percentual de desconto confrontando o desconto do arquivo vs desconto
-     * da condicao comercial. Alï¿½m disso, caso o item nao respeite as regras de desconto, ele eh marcado
+     * da condicao comercial. Além disso, caso o item nao respeite as regras de desconto, ele eh marcado
      * como nao pendente.
      */
     private fun tratarDesconto(itemInseridoVO: ItemNotaVO, itemPedidoOL: ItemPedidoOL) {
         val itemPedidoOLVO = itemPedidoOL.vo
         val precoBase = itemInseridoVO.precobase ?: 0.toBigDecimal()
         if (precoBase <= BigDecimal.ZERO) {
-            val mensagem = "Preï¿½o base zerado"
+            val mensagem = "Preço base zerado"
             itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
             itemInseridoVO.observacao = mensagem
             itemPedidoOL.setFeedback(RetornoItemPedidoEnum.CONDICAO, 0,mensagem)
@@ -568,7 +568,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private fun zeroSeNulo(valor: Int?) = valor ?: 0
 
     /**
-     * Seta propriedades de sessï¿½o Sankhya.
+     * Seta propriedades de sessão Sankhya.
      */
     private fun setSessionProperty(nome: String, valor: Boolean) {
         JapeSession.putProperty(nome, valor)
@@ -579,12 +579,12 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
 
     /**
      * Responsavel por criar o cabecalho do PedidoOL na central de vendas.
-     * Valida tambem se o tipo de negociaï¿½ï¿½o e condiï¿½ï¿½o comercial sao validos.
+     * Valida tambem se o tipo de negociação e condi??o comercial sao validos.
      */
     private fun criarCabecalho(pedidoOLVO: PedidoOLVO, clienteVO: ParceiroVO): CabecalhoNotaVO {
         LogOL.info("Preparando a criacao do cabecalho...")
-        val codTipVenda = requireNotNull(pedidoOLVO.codPrz) { " Prazo nï¿½o informado. " }
-        val condicaoComercial = requireNotNull(pedidoOLVO.cond?.toBigDecimal()) { " Condiï¿½ï¿½o comercial nï¿½o informada. " }
+        val codTipVenda = requireNotNull(pedidoOLVO.codPrz) { " Prazo n?o informado. " }
+        val condicaoComercial = requireNotNull(pedidoOLVO.cond?.toBigDecimal()) { " Condição comercial não informada. " }
 
         verificarCondicaoComercial(condicaoComercial)
 
@@ -619,17 +619,17 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Verifica se a condiï¿½ï¿½o comercial esta cadastrada.
+     * Verifica se a condi??o comercial esta cadastrada.
      */
     private fun verificarCondicaoComercial(condicaoComercial: BigDecimal) {
         condicaoDAO.findByPK(condicaoComercial) ?: throw EnviarPedidoCentralException(
-            "Condiï¿½ï¿½o Comercial $condicaoComercial nï¿½o encontrada.", RetornoPedidoEnum.CONDICAO
+            "Condição Comercial $condicaoComercial não encontrada.", RetornoPedidoEnum.CONDICAO
         )
     }
 
     /**
      * Busca o parceiro no Sankhya com base nos dados do PedidoOL.
-     * Alem disso, valida se o CNPJ ï¿½ valido e se o parceiro estï¿½ ativo e cadastro no Sankhya.
+     * Alem disso, valida se o CNPJ ? valido e se o parceiro est? ativo e cadastro no Sankhya.
      */
     private fun buscarCliente(pedidoOLVO: PedidoOLVO): ParceiroVO {
         val cnpjCliente = if(pedidoOLVO.cnpjCli == null){
@@ -648,7 +648,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
 
         if (clienteVO == null){
-            val mensagem = "Cliente nï¿½o cadastrado com o CNPJ ${pedidoOLVO.cnpjCli}"
+            val mensagem = "Cliente não cadastrado com o CNPJ ${pedidoOLVO.cnpjCli}"
             throw EnviarPedidoCentralException(mensagem, RetornoPedidoEnum.CLIENTE_NAO_CADASTRADO)
         }
 
@@ -690,7 +690,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Chama a rotina de confirmaï¿½ï¿½o nativa da central, caso exista item pendente no pedido.
+     * Chama a rotina de confirmação nativa da central, caso exista item pendente no pedido.
      */
     @Throws(Exception::class)
     @Deprecated("use simularConfirmacaoNota")
@@ -727,7 +727,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Seta propriedades de autenticaï¿½ï¿½o na sessï¿½o atual.
+     * Seta propriedades de autentica??o na sess?o atual.
      */
     @Deprecated("Nao deve ser usado no model")
     private fun setAuthenticationInfo(): AuthenticationInfo {
@@ -743,7 +743,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private fun cancelarPedido(pedidoCentralVO: CabecalhoNotaVO, nuNotaCentral: Int) {
         val jaEnviadoWMS = pedidoCentralVO.vo.asString("BH_STATUS") != "Nao integrado no WMS"
         if (jaEnviadoWMS) {
-            throw IllegalStateException("<H2>NÃ£o Ã© possÃ­vel cancelar. PEDIDO JA INTEGRADO COM WMS</H2>")
+            throw IllegalStateException("<H2>Não é possível cancelar. PEDIDO JA INTEGRADO COM WMS</H2>")
         }
         marcarTodosItensComoNaoPendente(nuNotaCentral, "Pedido OL Cancelado")
         pedidoCentralVO.vo.setProperty("AD_NUMPEDIDO_OL", null)
