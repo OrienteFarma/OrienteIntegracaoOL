@@ -3,9 +3,11 @@ package br.com.orientefarma.integradorol.model
 import br.com.orientefarma.integradorol.commons.RetornoPedidoEnum
 import br.com.orientefarma.integradorol.commons.StatusPedidoOLEnum
 import br.com.orientefarma.integradorol.commons.retirarTagsHtml
+import br.com.orientefarma.integradorol.controller.dto.PedidoOLDto
 import br.com.orientefarma.integradorol.dao.PedidoOLDAO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
+import java.math.BigDecimal
 
 class PedidoOL(val vo: PedidoOLVO) {
     private val pedidoOLDAO = PedidoOLDAO()
@@ -14,21 +16,12 @@ class PedidoOL(val vo: PedidoOLVO) {
     val codPrj: Int = vo.codPrj
 
     private val itensPedidoOL = ItemPedidoOL.fromPedidoOL(this)
-    private var codigoRetorno: RetornoPedidoEnum? = null
-    private var mensagem: String? = null
     private var nuNotaCentral: Int? = null
 
-    fun temFeedback(): Boolean {
-        return codigoRetorno != null
-    }
-
-    /**
-     * Capaz de setar os dados para retorno do pedido OL.
-     * Por exemplo: Se a condição comercial é inválida.
-     */
-    fun setFeedback(retorno: RetornoPedidoEnum, mensagem: String = ""){
-        this.codigoRetorno = retorno
-        this.mensagem = mensagem.retirarTagsHtml().take(100)
+    fun temCodRetorno(): Boolean {
+        // vo.vo = valueObject dentro do PedidoOLVO (WrapperVO)
+        val codRetSkw = this.vo.vo["CODRETSKW"]
+        return codRetSkw != null && (codRetSkw as BigDecimal) > BigDecimal.ZERO
     }
 
     /**
@@ -43,9 +36,8 @@ class PedidoOL(val vo: PedidoOLVO) {
      * Seta em feedback e PERSISTE no banco de dados.
      */
     fun salvarRetornoSankhya(status: StatusPedidoOLEnum, retorno: RetornoPedidoEnum, mensagem: String = ""){
-        setFeedback(retorno, mensagem)
-        vo.codRetSkw = this.codigoRetorno
-        vo.retSkw = this.mensagem?.retirarTagsHtml()?.take(100)
+        vo.codRetSkw = retorno
+        vo.retSkw = mensagem.retirarTagsHtml().take(100)
         vo.status = status
         vo.nuNota = this.nuNotaCentral ?: vo.nuNota
         pedidoOLDAO.save(vo)
@@ -58,7 +50,6 @@ class PedidoOL(val vo: PedidoOLVO) {
         val exceptionDesconhecida =
             EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
         val mensagem = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
-        setFeedback(exceptionDesconhecida.retornoOL, mensagem)
         vo.codRetSkw = exceptionDesconhecida.retornoOL
         vo.retSkw = mensagem
         vo.status = StatusPedidoOLEnum.ERRO
@@ -70,7 +61,6 @@ class PedidoOL(val vo: PedidoOLVO) {
      * Usado para salvar retorno de sucesso no envio para a central de vendas.
      */
     fun marcarSucessoEnvioCentral(nuNota: Int) {
-        setFeedback(RetornoPedidoEnum.SUCESSO)
         setNuNotaCentral(nuNota)
         vo.codRetSkw = RetornoPedidoEnum.SUCESSO
         vo.retSkw = ""
@@ -113,9 +103,9 @@ class PedidoOL(val vo: PedidoOLVO) {
             return PedidoOL(vo)
         }
 
-        fun fromPendentes(): Collection<PedidoOL>{
+        fun fromPendentes(): Collection<PedidoOLDto>{
             val pedidoOLVOIntegrados = PedidoOLDAO().findIntegrados(1)
-            return pedidoOLVOIntegrados.map { PedidoOL(it) }
+            return pedidoOLVOIntegrados.map { PedidoOLDto(it.nuPedOL, it.codPrj) }
         }
     }
 

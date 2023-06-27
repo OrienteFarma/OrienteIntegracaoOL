@@ -87,6 +87,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val pedidoCentralVO = criarCabecalho(pedidoOL.vo, clienteVO)
         criarItensCentral(pedidoOL, pedidoCentralVO)
         sumarizar(pedidoCentralVO)
+        pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
         return pedidoCentralVO.nuNota
     }
 
@@ -136,7 +137,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             }
         } finally {
             alterarStatusCentral(pedidoCentralVO.nuNota, StatusPedidoOLEnum.PENDENTE)
-            if(!pedidoOL.temFeedback()){
+            if(!pedidoOL.temCodRetorno()){
                 pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             }
         }
@@ -213,7 +214,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE, RetornoPedidoEnum.CONDICAO, mensagem)
         }
 
-        if(!pedidoOL.temFeedback()){
+        if(!pedidoOL.temCodRetorno()){
             pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE, RetornoPedidoEnum.ERRO_DESCONHECIDO, mensagem)
         }
 

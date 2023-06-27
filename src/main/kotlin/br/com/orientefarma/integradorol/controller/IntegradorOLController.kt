@@ -21,29 +21,28 @@ class IntegradorOLController {
      * Responsavel por chamar o model para enviar o PedidoOL para a central, bem como controlar as
      * transações apartardas (status, principal e log de erro).
      */
-    private fun enviarParaCentral(hnd: JapeSession.SessionHandle, pedidoOL: PedidoOL, ehJob: Boolean = false): Int? {
+    private fun enviarParaCentral(hnd: JapeSession.SessionHandle, pedidoOLDto: PedidoOLDto, ehJob: Boolean = false): Int? {
         var nuNotaEnviado: Int? = null
         try {
             if (ehJob) setarVariaveisSessao()
             LogOL.info("Iniciando envio para a central...")
-            hnd.execWithTX { pedidoOL.marcarComoEnviandoParaCentral() }
             hnd.execWithTX {
+                val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
+                pedidoOL.marcarComoEnviandoParaCentral()
+            }
+            hnd.execWithTX {
+                val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
                 val integradorOL = IntegradorOL(pedidoOL)
                 nuNotaEnviado = integradorOL.enviarParaCentral()
             }
         }catch (e: EnviarPedidoCentralException) {
-            salvarErroTratado(e, pedidoOL, hnd)
+            salvarErroTratado(e, pedidoOLDto, hnd)
         }catch (e: Exception){
             LogOL.erro("Erro nao conhecido: ${e.message} ...")
             e.printStackTrace()
             hnd.execWithTX {
+                val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
                 pedidoOL.salvarErroSankhya(e)
-            }
-        }finally {
-            if(nuNotaEnviado != null){
-                hnd.execWithTX {
-                    pedidoOL.salvarNuNotaCentral(requireNotNull(nuNotaEnviado))
-                }
             }
         }
         return nuNotaEnviado
@@ -52,8 +51,7 @@ class IntegradorOLController {
     fun enviarParaCentral(pedidosOLDto: List<PedidoOLDto>){
         openSession {
             for (pedidoOLDto in pedidosOLDto) {
-                val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
-                val nuNotaEnviado = enviarParaCentral(it, pedidoOL)
+                val nuNotaEnviado = enviarParaCentral(it, pedidoOLDto)
                 pedidoOLDto.nuNotaEnviado = nuNotaEnviado
             }
         }
@@ -62,11 +60,11 @@ class IntegradorOLController {
     fun enviarPendentesParaCentral(){
         val poolThreads = ParallelExecutor.getInstance(1)
         try{
-            val pedidoOLPendentes = PedidoOL.fromPendentes()
-            for (pedidoOL in pedidoOLPendentes) {
-                poolThreads.addTask("Enviando para central, pedido OL ${pedidoOL.codPrj}/${pedidoOL.nuPedOL}."){
+            val pedidoOLDtoPendentes = PedidoOL.fromPendentes()
+            for (pedidoOLDto in pedidoOLDtoPendentes) {
+                poolThreads.addTask("Enviando para central, pedido OL ${pedidoOLDto.codProjeto}/${pedidoOLDto.nuPedOL}."){
                     openSession {
-                        enviarParaCentral(it, pedidoOL, true)
+                        enviarParaCentral(it, pedidoOLDto, true)
                     }
                 }
             }
@@ -83,7 +81,7 @@ class IntegradorOLController {
             try{
                 it.execWithTX { integradorOL.cancelarPedido(cancelamentoDTO.codJustificativa) }
             }catch (e: CancelarPedidoCentralException){
-                salvarErroTratado(e, pedidoOL, it)
+                salvarErroTratado(e, pedidoDTO, it)
             }
         }
     }
@@ -97,7 +95,8 @@ class IntegradorOLController {
         SPBeanUtils.setupContext(serviceContext)
     }
 
-    private fun salvarErroTratado(e: IntegradorOLException, pedidoOL: PedidoOL, hnd: JapeSession.SessionHandle){
+    private fun salvarErroTratado(e: IntegradorOLException, pedidoOLDto: PedidoOLDto, hnd: JapeSession.SessionHandle){
+        val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
         LogOL.info("Registrando erro tratado (${e.retornoOL.name}/${pedidoOL.nuPedOL})...")
         hnd.execWithTX { pedidoOL.salvarErroSankhya(e) }
     }
