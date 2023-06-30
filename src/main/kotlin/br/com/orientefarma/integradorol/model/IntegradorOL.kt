@@ -11,10 +11,7 @@ import br.com.lughconsultoria.dao.ProdutoDAO
 import br.com.lughconsultoria.dao.vo.ItemNotaVO
 import br.com.lughconsultoria.dao.vo.ParceiroVO
 import br.com.lughconsultoria.dao.vo.ProdutoVO
-import br.com.orientefarma.integradorol.commons.LogOL
-import br.com.orientefarma.integradorol.commons.RetornoItemPedidoEnum
-import br.com.orientefarma.integradorol.commons.RetornoPedidoEnum
-import br.com.orientefarma.integradorol.commons.StatusPedidoOLEnum
+import br.com.orientefarma.integradorol.commons.*
 import br.com.orientefarma.integradorol.dao.CabecalhoNotaDAO
 import br.com.orientefarma.integradorol.dao.ProjetoIntegracaoDAO
 import br.com.orientefarma.integradorol.dao.toCabecalhoNotaVO
@@ -120,12 +117,13 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             if(tentativarConfirmacao <= 0) return
             tentativarConfirmacao--
             marcarComoNaoPendenteFormaTardia(pedidoCentralVO)
-            setSessionProperty("mov.financeiro.ignoraValidacao", true)
-            setSessionProperty("validar.alteracao.campos.em.titulos.baixados", false)
-            setSessionProperty("br.com.sankhya.com.CentralCompraVenda", true)
-            setSessionProperty("ItemNota.incluindo.alterando.pela.central", true)
+            setSessionProperty(JapeProperty.IGNORAR_VALIDACAO_FINANCEIRO, true)
+            setSessionProperty(JapeProperty.VALIDAR_ALTERACAO_BAIXADOS, false)
+            setSessionProperty(JapeProperty.EH_CENTRAL_COMPRA_VENDA, true)
+            setSessionProperty(JapeProperty.INCLUINDO_PELA_CENTRAL, true)
             validarAgrupamentoMinimoEmbalagem(pedidoCentralVO)
             totalizarPedido(pedidoCentralVO.nuNota)
+            CentralNotasUtils.refazerFinanceiro(pedidoCentralVO.nuNota.toBigDecimal())
             simularConfirmacaoCentral(pedidoCentralVO.nuNota)
             pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
@@ -318,14 +316,17 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * Além disso, gerencia os erros e os converte para feedback na tela de OL.
      */
     private fun criarItensCentral(pedidoOL: PedidoOL, pedidoCentralVO: CabecalhoNotaVO){
+        val propertyFinanceiroJaCriado = "financeiros.ja.foram.criados"
         val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
         for (itemPedidoOL in itensPedidoOL) {
             try {
+                JapeSession.putProperty(propertyFinanceiroJaCriado, true)
                 criarItemCentral(itemPedidoOL, pedidoCentralVO)
             }catch (e: EnviarItemPedidoCentralException){
                 itemPedidoOL.setFeedback(e.mensagem ?: "", 0)
             }finally {
                 itemPedidoOL.salvarRetornoItemPedidoOL()
+                JapeSession.putProperty(propertyFinanceiroJaCriado, false)
             }
         }
     }
@@ -351,10 +352,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
 
         val itemInseridoVO = itemInseridoDados.first ?: throw ItemNaoInseridoException()
-
-        //Checar se deconsto do arquivo, na BH_INSPRJ
-
-
 
         tratarDesconto(itemInseridoVO, itemPedidoOL)
 
@@ -511,7 +508,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                     itemInseridoVO.observacao = "DESCONTO INVALIDO"
                     // log desconto maior que o permitido
                 } else {
-                    itemInseridoVO.vo.set("AD_PERCDESC", percDescArquivo)
+                    itemInseridoVO.vo["AD_PERCDESC"] = percDescArquivo
                     val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
                     val valorDesconto = if (percDescArquivo <= BigDecimal.ZERO) {
                         BigDecimal.ZERO
