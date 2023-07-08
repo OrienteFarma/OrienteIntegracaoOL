@@ -20,7 +20,6 @@ import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
-import br.com.orientefarma.integradorol.exceptions.ItemNaoInseridoException
 import br.com.sankhya.jape.core.JapeSession
 import br.com.sankhya.jape.util.JapeSessionContext
 import br.com.sankhya.jape.wrapper.JapeFactory
@@ -33,7 +32,7 @@ import br.com.sankhya.modelcore.util.MGECoreParameter
 import java.math.BigDecimal
 
 
-class IntegradorOL(val pedidoOL: PedidoOL) {
+class IntegradorOL(private val pedidoOL: PedidoOL) {
 
     private val cabecalhoNotaDAO = CabecalhoNotaDAO()
     private val itemNotaDAO = ItemNotaDAO()
@@ -239,10 +238,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * Num pedido de 150, 50 devem ser cortados.
      */
     private fun validarAgrupamentoMinimoEmbalagem(pedidoCentralVO: CabecalhoNotaVO) {
-        val itensPendentesVO = itemNotaDAO.find {
-            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
-            it.parameters = arrayOf(pedidoCentralVO.nuNota)
-        }
+        val itensPendentesVO = getItensPendentesCentral(pedidoCentralVO.nuNota)
 
         for (itemNotaVO in itensPendentesVO) {
             val agrupamentoMinimo = itemNotaVO.vo.asInt("Produto.AGRUPMIN")
@@ -316,58 +312,48 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * Além disso, gerencia os erros e os converte para feedback na tela de OL.
      */
     private fun criarItensCentral(pedidoOL: PedidoOL, pedidoCentralVO: CabecalhoNotaVO){
-        val propertyFinanceiroJaCriado = "financeiros.ja.foram.criados"
         val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
+        val itensParaPersistirMap = prepararItens(itensPedidoOL, pedidoCentralVO)
+        val itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
+        tratarDesconto(itensCentralVO)
+    }
+
+    /**
+     * Prepara os itens num MAP para inserção na central, bem como grava os feedbacks de estoque na tabela meio.
+     */
+    private fun prepararItens(itensPedidoOL: Collection<ItemPedidoOL>,
+                              cabCentralVO: CabecalhoNotaVO): List<Map<String, Any?>> {
+
+        val itensParaPersistir = mutableListOf<Map<String, Any?>>()
         for (itemPedidoOL in itensPedidoOL) {
             try {
-                JapeSession.putProperty(propertyFinanceiroJaCriado, true)
-                criarItemCentral(itemPedidoOL, pedidoCentralVO)
+
+                val itemPedidoOLVO = itemPedidoOL.vo
+
+                val camposItem = preencherCamposGerais(cabCentralVO, itemPedidoOLVO)
+
+                val qtdEstoque = preencherCamposEstoque(cabCentralVO, itemPedidoOL, camposItem)
+
+                val qtdAtendida = if("S" == camposItem["AD_OLMARCARPENDENTE_NAO"]){
+                    0
+                } else {
+                    requireNotNull(camposItem["QTDNEG"]).toString().toInt()
+                }
+
+                val codRetorno =
+                    calcularRetornoAtendimentoItem(qtdEstoque, requireNotNull(itemPedidoOL.vo.qtdPed), qtdAtendida)
+                itemPedidoOL.setFeedback(codRetorno, qtdAtendida)
+
+                itensParaPersistir.add(camposItem)
+
             }catch (e: EnviarItemPedidoCentralException){
                 itemPedidoOL.setFeedback(e.mensagem ?: "", 0)
             }finally {
                 itemPedidoOL.salvarRetornoItemPedidoOL()
-                JapeSession.putProperty(propertyFinanceiroJaCriado, false)
             }
         }
-    }
+        return itensParaPersistir
 
-    /**
-     * Cria o item na central de vendas, validando as seguintes regras: campos básicos, valida estoque, valida desconto
-     * e calcula o status de retorno, por exemplo: se foi atendido por completo ou parcialmente.
-     */
-    private fun criarItemCentral(itemPedidoOL: ItemPedidoOL, pedidoCentralVO: CabecalhoNotaVO){
-        val itemPedidoOLVO = itemPedidoOL.vo
-
-        val camposItem = preencherCamposGerais(pedidoCentralVO, itemPedidoOLVO)
-
-        val qtdEstoque = preencherCamposEstoque(pedidoCentralVO, itemPedidoOL, camposItem)
-
-        val itemInseridoDados = inserirItemSemPreco(pedidoCentralVO, camposItem)
-
-        val retornoException = itemInseridoDados.second
-        if (retornoException != null) {
-            retornoException.printStackTrace()
-            itemPedidoOL.setFeedback("Erro ao inserir o item: ${retornoException.mensagem}", 0)
-            return
-        }
-
-        val itemInseridoVO = itemInseridoDados.first ?: throw ItemNaoInseridoException()
-
-        tratarDesconto(itemInseridoVO, itemPedidoOL)
-
-        itemNotaDAO.save(itemInseridoVO)
-
-        val qtdAtendida = if("S" == itemInseridoVO.vo.asString("AD_OLMARCARPENDENTE_NAO")){
-            0
-        } else {
-            requireNotNull(itemInseridoVO.qtdneg).toInt()
-        }
-
-        if(!itemPedidoOL.temFeedback()){
-            val codRetorno =
-                calcularRetornoAtendimentoItem(qtdEstoque, requireNotNull(itemPedidoOL.vo.qtdPed), qtdAtendida)
-            itemPedidoOL.setFeedback(codRetorno, qtdAtendida)
-        }
     }
 
     /**
@@ -473,7 +459,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             throw EnviarItemPedidoCentralException("Produto não informado.")
         val produtoVO = produtoDAO.findByPK(codProd)
         if (!produtoVO.ativo) {
-            throw EnviarItemPedidoCentralException("Produto ${codProd} n\u00e3o esta ativo.")
+            throw EnviarItemPedidoCentralException("Produto $codProd n\u00e3o esta ativo.")
         }
         return produtoVO
     }
@@ -483,53 +469,53 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * da condicao comercial. Além disso, caso o item nao respeite as regras de desconto, ele eh marcado
      * como nao pendente.
      */
-    private fun tratarDesconto(itemInseridoVO: ItemNotaVO, itemPedidoOL: ItemPedidoOL) {
-        val itemPedidoOLVO = itemPedidoOL.vo
-        val precoBase = itemInseridoVO.precobase ?: 0.toBigDecimal()
-        if (precoBase <= BigDecimal.ZERO) {
-            val mensagem = "Preço base zerado"
-            itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
-            itemInseridoVO.observacao = mensagem
-            itemPedidoOL.setFeedback(RetornoItemPedidoEnum.CONDICAO, 0,mensagem)
-        } else {
+    private fun tratarDesconto(itensCentralVO: List<ItemNotaVO>) {
+        for (itemInseridoVO in itensCentralVO) {
+            val itemPedidoOL = requireNotNull(ItemPedidoOL
+                .fromCodProd(this.pedidoOL.nuPedOL, this.pedidoOL.codPrj, itemInseridoVO.codprod))
+                { "Item Pedido OL nao localizado ${itemInseridoVO.codprod}." }
+
+            val itemPedidoOLVO = itemPedidoOL.vo
+            val precoBase = itemInseridoVO.precobase ?: 0.toBigDecimal()
+            if (precoBase <= BigDecimal.ZERO) {
+                val mensagem = "Preço base zerado"
+                itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
+                itemInseridoVO.observacao = mensagem
+                itemPedidoOL.setFeedback(RetornoItemPedidoEnum.CONDICAO, 0, mensagem)
+            } else {
 
 
-
-            val percDescCondicao = itemInseridoVO.vo.asBigDecimalOrZero("AD_PERCDESC")
-            val percDescArquivo = itemPedidoOLVO.prodDesc ?: 0.toBigDecimal()
-
-
-            //Checa SE deconsto do arquivo, na BH_INSPRJ
-            if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj) == "S") {
+                val percDescCondicao = itemInseridoVO.vo.asBigDecimalOrZero("AD_PERCDESC")
+                val percDescArquivo = itemPedidoOLVO.prodDesc ?: 0.toBigDecimal()
 
 
-                if (percDescArquivo > percDescCondicao) {
-                    itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
-                    itemInseridoVO.observacao = "DESCONTO INVALIDO"
-                    // log desconto maior que o permitido
-                } else {
-                    itemInseridoVO.vo["AD_PERCDESC"] = percDescArquivo
-                    val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
-                    val valorDesconto = if (percDescArquivo <= BigDecimal.ZERO) {
-                        BigDecimal.ZERO
+                //Checa SE deconsto do arquivo, na BH_INSPRJ
+                if (projetoIntegracaoDAO.descontoArquivo(itemPedidoOL.vo.codPrj) == "S") {
+
+                    if (percDescArquivo > percDescCondicao) {
+                        itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
+                        itemInseridoVO.observacao = "DESCONTO INVALIDO"
+                        // log desconto maior que o permitido
                     } else {
-                        valorBruto * (percDescArquivo * fatorPercentual)
+                        itemInseridoVO.vo["AD_PERCDESC"] = percDescArquivo
+                        val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
+                        val valorDesconto = if (percDescArquivo <= BigDecimal.ZERO) {
+                            BigDecimal.ZERO
+                        } else {
+                            valorBruto * (percDescArquivo * fatorPercentual)
+                        }
+
+                        val vlrUnitario = precoBase - (precoBase * (percDescArquivo * fatorPercentual))
+
+                        itemInseridoVO.vo.setProperty("AD_VLRDESC", valorDesconto)
+                        itemInseridoVO.vo.setProperty("VLRUNIT", vlrUnitario)
+                        itemInseridoVO.vo.setProperty("AD_VLRUNITCM", vlrUnitario)
+                        itemInseridoVO.vo.setProperty("VLRTOT", vlrUnitario * itemInseridoVO.qtdneg!!)
                     }
-
-                    val vlrUnitario = precoBase - (precoBase * (percDescArquivo * fatorPercentual))
-
-                    itemInseridoVO.vo.setProperty("AD_VLRDESC", valorDesconto)
-                    itemInseridoVO.vo.setProperty("VLRUNIT", vlrUnitario)
-                    itemInseridoVO.vo.setProperty("AD_VLRUNITCM", vlrUnitario)
-                    itemInseridoVO.vo.setProperty("VLRTOT", vlrUnitario * itemInseridoVO.qtdneg!!)
-
-
                 }
             }
-
-
-
-
+            itemNotaDAO.save(itemInseridoVO)
+            itemPedidoOL.salvarRetornoItemPedidoOL()
         }
     }
 
@@ -537,32 +523,32 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * Tenta inserir um item na central obedecendo as regras de barramento.
      * Retorna um par com o item inserido ou a excecao que impediu a insercao.
      */
-    private fun inserirItemSemPreco(pedidoCentralVO: CabecalhoNotaVO, camposItem: MutableMap<String, Any?>):
-            Pair<ItemNotaVO?, EnviarItemPedidoCentralException?> {
+    private fun inserirItemSemPreco(pedidoCentralVO: CabecalhoNotaVO, listaItensMap: List<Map<String, Any?>>): List<ItemNotaVO> {
+
+        val itensInseridos = mutableListOf<ItemNotaVO>()
 
         setSessionProperty("mov.financeiro.ignoraValidacao", true)
         setSessionProperty("br.com.sankhya.com.CentralCompraVenda", true)
         setSessionProperty("ItemNota.incluindo.alterando.pela.central", true)
         setSessionProperty("validar.alteracao.campos.em.titulos.baixados", false)
 
-        var barramento: BarramentoRegra.DadosBarramento? = null
-        var exceptionAoIncluir: EnviarItemPedidoCentralException? = null
+        val barramento: BarramentoRegra.DadosBarramento?
         try {
-            barramento = incluirItensSemPreco(pedidoCentralVO.nuNota.toBigDecimal(), arrayOf(camposItem))
-        } catch (e: Exception) {
-            exceptionAoIncluir = EnviarItemPedidoCentralException(e.message)
-        }
+            barramento = incluirItensSemPreco(pedidoCentralVO.nuNota.toBigDecimal(), listaItensMap)
 
-        val pksItemNota = barramento?.pksEnvolvidas?.first()
-        if(pksItemNota != null){
-            val sequencia = pksItemNota.values[1].toString().toInt()
-            val itemInseridoVO = tryOrNull { itemNotaDAO.findByPK(pedidoCentralVO.nuNota, sequencia) }
-            if(itemInseridoVO != null){
-                return Pair(itemInseridoVO, exceptionAoIncluir)
+            barramento?.pksEnvolvidas?.forEach {
+                val sequencia = it.values[1].toString().toInt()
+                val itemInseridoVO = tryOrNull { itemNotaDAO.findByPK(pedidoCentralVO.nuNota, sequencia ) }
+                if(itemInseridoVO != null){
+                    itensInseridos.add(itemInseridoVO)
+                }
             }
+
+        }catch (e: Exception) {
+            throw EnviarItemPedidoCentralException("Falha ao persistir os itens", e)
         }
 
-        return Pair(null, exceptionAoIncluir)
+        return itensInseridos
     }
 
     private fun zeroSeNulo(valor: Int?) = valor ?: 0
@@ -669,9 +655,9 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * Barramento = Mecanismo de controle de regras/falhas da central de vendas Sankhya.
      */
     @Throws(Exception::class)
-    private fun incluirItensSemPreco(nuNota: BigDecimal, itens: Array<Map<String, Any?>>): BarramentoRegra.DadosBarramento? {
+    private fun incluirItensSemPreco(nuNota: BigDecimal, itens: List<Map<String, Any?>>): BarramentoRegra.DadosBarramento? {
         try {
-            val barramentoRegra = CentralNotasUtils.incluirItens(nuNota, itens.toList(),false)
+            val barramentoRegra = CentralNotasUtils.incluirItens(nuNota, itens,false)
             impostohelp.setForcarRecalculo(true)
             impostohelp.setSankhya(false)
 
@@ -687,27 +673,6 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             e.printStackTrace()
             throw e
         }
-    }
-
-    /**
-     * Chama a rotina de confirmação nativa da central, caso exista item pendente no pedido.
-     */
-    @Throws(Exception::class)
-    @Deprecated("use simularConfirmacaoNota")
-    private fun confirmarMovCentral(nuNota: Int): BarramentoRegra.DadosBarramento {
-        val barramento = BarramentoRegra.build(CentralFaturamento::class.java,
-            "regrasConfirmacaoSilenciosa.xml", AuthenticationInfo.getCurrent())
-
-        val temItemPendente = itemNotaDAO.find {
-            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
-            it.parameters = arrayOf(nuNota)
-        }.isNotEmpty()
-
-        if(temItemPendente){
-            ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento, true)
-        }
-
-        return barramento.dadosBarramento
     }
 
     @Throws(java.lang.Exception::class)
@@ -726,30 +691,23 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
     }
 
-    /**
-     * Seta propriedades de autentica??o na sess?o atual.
-     */
-    @Deprecated("Nao deve ser usado no model")
-    private fun setAuthenticationInfo(): AuthenticationInfo {
-        val info = AuthenticationInfo.getCurrentOrNull()
-            ?: AuthenticationInfo("SUP", BigDecimal.ZERO, BigDecimal.ZERO, 0).apply { makeCurrent() }
-
-        JapeSessionContext.putProperty("usuario_logado", info.userID)
-        JapeSessionContext.putProperty("authInfo", info)
-
-        return info
-    }
-
     private fun cancelarPedido(pedidoCentralVO: CabecalhoNotaVO, nuNotaCentral: Int) {
-        val jaEnviadoWMS = pedidoCentralVO.vo.asString("BH_STATUS") != "Nao integrado no WMS"
-        if (jaEnviadoWMS) {
-            throw IllegalStateException("<H2>Não é possível cancelar. PEDIDO JA INTEGRADO COM WMS</H2>")
+        val enviadoParaWMS = pedidoCentralVO.vo.asString("BH_STATUS") != "Nao integrado no WMS"
+        check(!enviadoParaWMS){
+            throw IllegalStateException("N\u00e3o \u00e9 poss\u00edvel cancelar. Pedido j\u00e1 enviado para o WMS.")
         }
         marcarTodosItensComoNaoPendente(nuNotaCentral, "Pedido OL Cancelado")
         pedidoCentralVO.vo.setProperty("AD_NUMPEDIDO_OL", null)
         pedidoCentralVO.vo.setProperty("AD_NUINTEGRACAO", null)
         pedidoCentralVO.vo.setProperty("AD_STATUSOL", "CANCELADO")
         cabecalhoNotaDAO.save(pedidoCentralVO)
+    }
+
+    private fun getItensPendentesCentral(nuNota: Int): Collection<ItemNotaVO> {
+        return itemNotaDAO.find {
+            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
+            it.parameters = arrayOf(nuNota)
+        }
     }
 
 }

@@ -6,6 +6,7 @@ package br.com.orientefarma.integradorol.commons
          val VALIDAR_ALTERACAO_BAIXADOS = "validar.alteracao.campos.em.titulos.baixados"
          val EH_CENTRAL_COMPRA_VENDA = "br.com.sankhya.com.CentralCompraVenda"
          val INCLUINDO_PELA_CENTRAL = "ItemNota.incluindo.alterando.pela.central"
+         val FINANCEIROS_JA_FORAM_CRIADOS = "financeiros.ja.foram.criados"
      }
 
 }

@@ -8,13 +8,6 @@ import com.sankhya.util.StringUtils
 
 class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     private val itemPedidoOLDAO = ItemPedidoOLDAO()
-    private var codigoRetorno: RetornoItemPedidoEnum? = null
-    private var mensagem: String = ""
-    private var qtdAtendida: Int = 0
-
-    fun temFeedback(): Boolean {
-        return codigoRetorno != null
-    }
 
     /**
      * Capaz de setar os dados para retorno do item de pedido OL.
@@ -22,8 +15,8 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
      * USADO quando somente há a mensagem de erro.
      */
     fun setFeedback(mensagem: String, qtdAtendida: Int){
-        this.mensagem = mensagem.retirarTagsHtml().take(100)
-        this.qtdAtendida = qtdAtendida
+        this.vo.retSkw = mensagem.retirarTagsHtml().take(100)
+        this.vo.qtdAtd = qtdAtendida
     }
 
     /**
@@ -32,15 +25,15 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
      * USADO quando se tem o RetornoItemPedidoEnum - erro catalogado.
      */
     fun setFeedback(retorno: RetornoItemPedidoEnum, qtdAtendida: Int, mensagem: String = ""){
-        this.codigoRetorno = retorno
+        this.vo.codRetSkw = retorno.codigo
 
         if (StringUtils.isEmpty(mensagem)) {
-            this.mensagem = retorno.name
+            this.vo.retSkw = retorno.name
         }
         else{
-            this.mensagem = mensagem.retirarTagsHtml().take(100)
+            this.vo.retSkw = mensagem.retirarTagsHtml().take(100)
         }
-        this.qtdAtendida = qtdAtendida
+        this.vo.qtdAtd = qtdAtendida
     }
 
     /**
@@ -48,10 +41,8 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
      * Este método é responsável por persistir o feedback no banco de dados.
      */
     fun salvarRetornoItemPedidoOL() {
-        val retornoItem = codigoRetorno ?: calcularCodigoRetorno()
+        val retornoItem = calcularCodigoRetorno()
         vo.codRetSkw = retornoItem.codigo
-        vo.retSkw = mensagem.retirarTagsHtml().take(100)
-        vo.qtdAtd = qtdAtendida
         itemPedidoOLDAO.save(vo)
     }
 
@@ -69,14 +60,15 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
      */
     private fun calcularCodigoRetorno(): RetornoItemPedidoEnum {
         for (retornoItem in RetornoItemPedidoEnum.values()) {
-            if (this.mensagem.contains(retornoItem.expressaoRegex)) {
+            val mensagemRetorno = this.vo.retSkw
+            if (mensagemRetorno != null && mensagemRetorno.contains(retornoItem.expressaoRegex)) {
                 return retornoItem
             }
         }
         return RetornoItemPedidoEnum.FALHA_DESCONHECIDA
     }
     override fun toString(): String {
-        return "EnviarItemPedidoCentralException(mensagem=$mensagem)"
+        return "EnviarItemPedidoCentralException(mensagem=${this.vo.retSkw})"
     }
 
     /**
