@@ -648,7 +648,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
 
         if (clienteVO == null){
-            val mensagem = "Cliente não cadastrado com o CNPJ ${pedidoOLVO.cnpjCli}"
+            val mensagem = "Cliente n\u00e3o cadastrado com o CNPJ ${pedidoOLVO.cnpjCli}"
             throw EnviarPedidoCentralException(mensagem, RetornoPedidoEnum.CLIENTE_NAO_CADASTRADO)
         }
 

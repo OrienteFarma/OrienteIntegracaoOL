@@ -7,6 +7,7 @@ import br.com.orientefarma.integradorol.controller.dto.PedidoOLDto
 import br.com.orientefarma.integradorol.dao.PedidoOLDAO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
+import br.com.orientefarma.integradorol.exceptions.IntegradorOLException
 import java.math.BigDecimal
 
 class PedidoOL(val vo: PedidoOLVO) {
@@ -47,11 +48,16 @@ class PedidoOL(val vo: PedidoOLVO) {
      * Usado para salvar retorno de exceções não tratadas.
      */
     fun salvarErroSankhya(exception: Exception){
-        val exceptionDesconhecida =
-            EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
-        val mensagem = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
-        vo.codRetSkw = exceptionDesconhecida.retornoOL
-        vo.retSkw = mensagem
+        if(exception is IntegradorOLException){
+            vo.codRetSkw = exception.retornoOL
+            vo.retSkw = exception.mensagem
+        }else{
+            val exceptionDesconhecida =
+                EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
+            vo.codRetSkw = exceptionDesconhecida.retornoOL
+            val mensagem = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
+            vo.retSkw = mensagem
+        }
         vo.status = StatusPedidoOLEnum.ERRO
         vo.nuNota = this.nuNotaCentral
         pedidoOLDAO.save(vo)
