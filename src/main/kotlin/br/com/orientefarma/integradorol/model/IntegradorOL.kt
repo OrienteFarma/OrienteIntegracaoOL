@@ -21,6 +21,7 @@ import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.ItemNaoInseridoException
+import br.com.orientefarma.integradorol.uitls.CentralNotaUtilsWrapper
 import br.com.sankhya.jape.core.JapeSession
 import br.com.sankhya.jape.util.JapeSessionContext
 import br.com.sankhya.jape.wrapper.JapeFactory
@@ -33,7 +34,7 @@ import br.com.sankhya.modelcore.util.MGECoreParameter
 import java.math.BigDecimal
 
 
-class IntegradorOL(val pedidoOL: PedidoOL) {
+class IntegradorOL(private val pedidoOL: PedidoOL) {
 
     private val cabecalhoNotaDAO = CabecalhoNotaDAO()
     private val itemNotaDAO = ItemNotaDAO()
@@ -43,6 +44,8 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
     private val condicaoDAO = JapeFactory.dao("AD_CONDCOMERCIAL")
     private val facadeW = EntityFacadeW()
     private val impostohelp = ImpostosHelpper()
+
+    private val centralNotasUtilsWrapper = CentralNotaUtilsWrapper()
 
     private val paramTOPPedido: BigDecimal
     private val paraModeloPedido: BigDecimal
@@ -74,17 +77,28 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
      * - Cria os itens tratando estoque, desconto e motivos de n?o atendimento
      * - Realiza a confirmação do pedido na central, bem como trata possíveis erros de documentação e afins.
      */
-    fun enviarParaCentral(): Int {
+    fun enviarParaCentral(): Int? {
         val cabVO = cabecalhoNotaDAO.findByPkOL(pedidoOL.nuPedOL, pedidoOL.codPrj)
+
         if(cabVO != null){
             atualizarPedidoOLDadosCentral(cabVO)
             return cabVO.nuNota
         }
+
         val clienteVO = buscarCliente(pedidoOL.vo)
+
         val pedidoCentralVO = criarCabecalho(pedidoOL.vo, clienteVO)
+
         criarItensCentral(pedidoOL, pedidoCentralVO)
-        sumarizar(pedidoCentralVO)
-        pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
+
+       if(pedidoFicouSemItem(pedidoCentralVO.nuNota)){
+           deletarPedido(pedidoCentralVO.nuNota)
+           return null
+       }else{
+           sumarizar(pedidoCentralVO)
+           pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
+       }
+
         return pedidoCentralVO.nuNota
     }
 
@@ -116,17 +130,25 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         try {
             if(tentativarConfirmacao <= 0) return
             tentativarConfirmacao--
+
             marcarComoNaoPendenteFormaTardia(pedidoCentralVO)
-            setSessionProperty(JapeProperty.IGNORAR_VALIDACAO_FINANCEIRO, true)
-            setSessionProperty(JapeProperty.VALIDAR_ALTERACAO_BAIXADOS, false)
-            setSessionProperty(JapeProperty.EH_CENTRAL_COMPRA_VENDA, true)
-            setSessionProperty(JapeProperty.INCLUINDO_PELA_CENTRAL, true)
-            validarAgrupamentoMinimoEmbalagem(pedidoCentralVO)
-            totalizarPedido(pedidoCentralVO.nuNota)
-            CentralNotasUtils.refazerFinanceiro(pedidoCentralVO.nuNota.toBigDecimal())
-            simularConfirmacaoCentral(pedidoCentralVO.nuNota)
-            pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
-            setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
+
+            if (temItemPendente(pedidoCentralVO.nuNota)) {
+                setarPropriedadesCentral()
+                validarAgrupamentoMinimoEmbalagem(pedidoCentralVO)
+                totalizarPedido(pedidoCentralVO.nuNota)
+                refazerFinanceiroCentral(pedidoCentralVO.nuNota)
+                simularConfirmacaoCentral(pedidoCentralVO.nuNota)
+                pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
+                setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
+            }else{
+                throw EnviarPedidoCentralException("Nenhum item atendido.",
+                    RetornoPedidoEnum.NENHUM_ITEM_PENDENTE)
+            }
+
+
+        } catch (e: EnviarPedidoCentralException) {
+            throw e
         } catch (e: Exception) {
             val message = e.message ?: ""
             val tentarSumarizarNovamente = verificarRegrasComerciais(message, pedidoCentralVO)
@@ -139,6 +161,13 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
             }
         }
+    }
+
+    private fun setarPropriedadesCentral() {
+        setSessionProperty(JapeProperty.IGNORAR_VALIDACAO_FINANCEIRO, true)
+        setSessionProperty(JapeProperty.VALIDAR_ALTERACAO_BAIXADOS, false)
+        setSessionProperty(JapeProperty.EH_CENTRAL_COMPRA_VENDA, true)
+        setSessionProperty(JapeProperty.INCLUINDO_PELA_CENTRAL, true)
     }
 
     /**
@@ -200,7 +229,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
                 val numPedidoOL = pedidoCentralVO.vo.asString("AD_NUMPEDIDO_OL") ?: "0"
                 val codProjeto = pedidoCentralVO.vo.asInt("AD_NUINTEGRACAO")
                 val itemPedidoOL = ItemPedidoOL.fromCodProd(numPedidoOL, codProjeto, codProd)
-                itemPedidoOL?.setFeedback("Falta de documentação", 0)
+                itemPedidoOL?.setFeedback("Falta de documenta\u00e7\u00e3o", 0)
                 itemPedidoOL?.salvarRetornoItemPedidoOL()
                 podeTentarSumarizarNovamente = true
             }
@@ -473,7 +502,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
             throw EnviarItemPedidoCentralException("Produto não informado.")
         val produtoVO = produtoDAO.findByPK(codProd)
         if (!produtoVO.ativo) {
-            throw EnviarItemPedidoCentralException("Produto ${codProd} n\u00e3o esta ativo.")
+            throw EnviarItemPedidoCentralException("Produto $codProd n\u00e3o esta ativo.")
         }
         return produtoVO
     }
@@ -487,7 +516,7 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         val itemPedidoOLVO = itemPedidoOL.vo
         val precoBase = itemInseridoVO.precobase ?: 0.toBigDecimal()
         if (precoBase <= BigDecimal.ZERO) {
-            val mensagem = "Preço base zerado"
+            val mensagem = "Pre\u00e7o base zerado"
             itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
             itemInseridoVO.observacao = mensagem
             itemPedidoOL.setFeedback(RetornoItemPedidoEnum.CONDICAO, 0,mensagem)
@@ -689,67 +718,42 @@ class IntegradorOL(val pedidoOL: PedidoOL) {
         }
     }
 
-    /**
-     * Chama a rotina de confirmação nativa da central, caso exista item pendente no pedido.
-     */
-    @Throws(Exception::class)
-    @Deprecated("use simularConfirmacaoNota")
-    private fun confirmarMovCentral(nuNota: Int): BarramentoRegra.DadosBarramento {
-        val barramento = BarramentoRegra.build(CentralFaturamento::class.java,
-            "regrasConfirmacaoSilenciosa.xml", AuthenticationInfo.getCurrent())
-
-        val temItemPendente = itemNotaDAO.find {
-            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
-            it.parameters = arrayOf(nuNota)
-        }.isNotEmpty()
-
-        if(temItemPendente){
-            ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento, true)
-        }
-
-        return barramento.dadosBarramento
-    }
-
     @Throws(java.lang.Exception::class)
     private fun simularConfirmacaoCentral(nuNota: Int) {
         val barramento = BarramentoRegra.build(CentralFaturamento::class.java,
             "regrasConfirmacaoSilenciosa.xml", AuthenticationInfo.getCurrent())
-
-        val temItemPendente = itemNotaDAO.find {
-            it.where = " PENDENTE = 'S' AND NUNOTA = ? "
-            it.parameters = arrayOf(nuNota)
-        }.isNotEmpty()
-
-        if(temItemPendente){
-            ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento,
-                false, true)
-        }
+        ConfirmacaoNotaHelper.confirmarNota(nuNota.toBigDecimal(), barramento,false, true)
     }
 
-    /**
-     * Seta propriedades de autentica??o na sess?o atual.
-     */
-    @Deprecated("Nao deve ser usado no model")
-    private fun setAuthenticationInfo(): AuthenticationInfo {
-        val info = AuthenticationInfo.getCurrentOrNull()
-            ?: AuthenticationInfo("SUP", BigDecimal.ZERO, BigDecimal.ZERO, 0).apply { makeCurrent() }
-
-        JapeSessionContext.putProperty("usuario_logado", info.userID)
-        JapeSessionContext.putProperty("authInfo", info)
-
-        return info
+    @Throws(java.lang.Exception::class)
+    private fun refazerFinanceiroCentral(nuNota: Int) {
+        centralNotasUtilsWrapper.refazerFinanceiro(nuNota)
     }
+
+
+    private fun temItemPendente(nuNota: Int) = itemNotaDAO.find {
+        it.where = " PENDENTE = 'S' AND NUNOTA = ? "
+        it.parameters = arrayOf(nuNota)
+    }.isNotEmpty()
 
     private fun cancelarPedido(pedidoCentralVO: CabecalhoNotaVO, nuNotaCentral: Int) {
-        val jaEnviadoWMS = pedidoCentralVO.vo.asString("BH_STATUS") != "Nao integrado no WMS"
-        if (jaEnviadoWMS) {
-            throw IllegalStateException("<H2>Não é possível cancelar. PEDIDO JA INTEGRADO COM WMS</H2>")
-        }
+        val enviadoAoWMS = pedidoCentralVO.vo.asString("BH_STATUS") != "Nao integrado no WMS"
+        check(!enviadoAoWMS) { "N\u00e3o \u00e9 poss\u00edvel cancelar. Pedido j\u00e1 integrado ao WMS." }
         marcarTodosItensComoNaoPendente(nuNotaCentral, "Pedido OL Cancelado")
         pedidoCentralVO.vo.setProperty("AD_NUMPEDIDO_OL", null)
         pedidoCentralVO.vo.setProperty("AD_NUINTEGRACAO", null)
         pedidoCentralVO.vo.setProperty("AD_STATUSOL", "CANCELADO")
         cabecalhoNotaDAO.save(pedidoCentralVO)
+    }
+
+    private fun deletarPedido(nuNota: Int) {
+        cabecalhoNotaDAO.deleteByPk(nuNota)
+        pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE,
+            RetornoPedidoEnum.SUCESSO, "Nenhum item foi inclu\u00eddo. O Nro. \u00fanico foi deletado.")
+    }
+
+    private fun pedidoFicouSemItem(nuNota: Int): Boolean{
+        return null == itemNotaDAO.findOne(" NUNOTA = ? ", nuNota)
     }
 
 }

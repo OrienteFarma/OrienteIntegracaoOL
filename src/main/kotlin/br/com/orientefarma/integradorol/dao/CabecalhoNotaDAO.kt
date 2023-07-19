@@ -21,4 +21,8 @@ class CabecalhoNotaDAO : GenericDAO<CabecalhoNotaVO>(DynamicEntityNames.CABECALH
         }
         return requireNotNull(cabecalhoNotaVO){" Falha ao encontrar cabecalho nota com a pk $nuNota"}
     }
+
+    fun deleteByPk(nuNota: Int) {
+        delete(" NUNOTA = ? ", nuNota)
+    }
 }
