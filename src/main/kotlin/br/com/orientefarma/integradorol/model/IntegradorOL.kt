@@ -77,7 +77,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
      * - Cria os itens tratando estoque, desconto e motivos de n?o atendimento
      * - Realiza a confirmação do pedido na central, bem como trata possíveis erros de documentação e afins.
      */
-    fun enviarParaCentral(): Int? {
+    fun enviarParaCentral(): Int {
         val cabVO = cabecalhoNotaDAO.findByPkOL(pedidoOL.nuPedOL, pedidoOL.codPrj)
 
         if(cabVO != null){
@@ -91,13 +91,9 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
         criarItensCentral(pedidoOL, pedidoCentralVO)
 
-       if(pedidoFicouSemItem(pedidoCentralVO.nuNota)){
-           deletarPedido(pedidoCentralVO.nuNota)
-           return null
-       }else{
-           sumarizar(pedidoCentralVO)
-           pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
-       }
+        sumarizar(pedidoCentralVO)
+
+        pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
 
         return pedidoCentralVO.nuNota
     }
@@ -142,11 +138,9 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
                 pedidoOL.marcarSucessoEnvioCentral(pedidoCentralVO.nuNota)
                 setSessionProperty("br.com.sankhya.com.CentralCompraVenda", false)
             }else{
-                throw EnviarPedidoCentralException("Nenhum item atendido.",
-                    RetornoPedidoEnum.NENHUM_ITEM_PENDENTE)
+                pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE,
+                    RetornoPedidoEnum.NENHUM_ITEM_PENDENTE, "Nenhum item atendido")
             }
-
-
         } catch (e: EnviarPedidoCentralException) {
             throw e
         } catch (e: Exception) {
@@ -499,7 +493,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
      */
     private fun getProdutoVO(codProd: Int?): ProdutoVO {
         if(codProd == null)
-            throw EnviarItemPedidoCentralException("Produto não informado.")
+            throw EnviarItemPedidoCentralException("Produto n\u00e3o informado.")
         val produtoVO = produtoDAO.findByPK(codProd)
         if (!produtoVO.ativo) {
             throw EnviarItemPedidoCentralException("Produto $codProd n\u00e3o esta ativo.")
@@ -744,16 +738,6 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
         pedidoCentralVO.vo.setProperty("AD_NUINTEGRACAO", null)
         pedidoCentralVO.vo.setProperty("AD_STATUSOL", "CANCELADO")
         cabecalhoNotaDAO.save(pedidoCentralVO)
-    }
-
-    private fun deletarPedido(nuNota: Int) {
-        cabecalhoNotaDAO.deleteByPk(nuNota)
-        pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE,
-            RetornoPedidoEnum.SUCESSO, "Nenhum item foi inclu\u00eddo. O Nro. \u00fanico foi deletado.")
-    }
-
-    private fun pedidoFicouSemItem(nuNota: Int): Boolean{
-        return null == itemNotaDAO.findOne(" NUNOTA = ? ", nuNota)
     }
 
 }
