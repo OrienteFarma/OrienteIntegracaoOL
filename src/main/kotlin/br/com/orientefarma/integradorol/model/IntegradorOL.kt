@@ -58,6 +58,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
      * Inicia os parametros (Preferencias Sankhya) necessarios para execucao das rotinas.
      */
     init {
+        // TODO Excluir entulho de código
         val nomeParamTOPPedido = "OR_OLTOPPED"
         paramTOPPedido = tryOrNull {
             MGECoreParameter.getParameter(nomeParamTOPPedido).toString().toBigDecimal()
@@ -619,6 +620,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
             "NUMPEDIDO2" to pedidoOLVO.nuPedCli?.take(15),
             "NUMNOTA" to BigDecimal.ZERO,
             "CIF_FOB" to "F",
+            // TODO 1 Retriar, excuir parametro
             "CODTIPOPER" to paramTOPPedido,
             "AD_TIPOCONDICAO" to "O",
             "CODTIPVENDA" to codTipVenda,
@@ -631,6 +633,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
         LogOL.info("Tentando criar cabecalho com os dados $camposPedidoCentral...")
 
+        // TODO 2 Substituir  paraModeloPedido pelo campo NUMODELOCENTRAL (Criar) através do JOIN com a tabela de projeto
         val cabecalhoVO = CentralNotasUtils.duplicaNota(paraModeloPedido, camposPedidoCentral).toCabecalhoNotaVO()
 
         LogOL.info("Conseguiu criar o cabecalho de numero unico ${cabecalhoVO.nuNota}...")
