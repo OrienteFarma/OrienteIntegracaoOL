@@ -8,6 +8,7 @@ import br.com.orientefarma.integradorol.dao.PedidoOLDAO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.IntegradorOLException
+import br.com.sankhya.jape.vo.DynamicVO
 import java.math.BigDecimal
 
 class PedidoOL(val vo: PedidoOLVO) {
@@ -18,6 +19,10 @@ class PedidoOL(val vo: PedidoOLVO) {
 
     private val itensPedidoOL = ItemPedidoOL.fromPedidoOL(this)
     private var nuNotaCentral: Int? = null
+
+    init {
+        this.vo.vo["CODRETSKW"] = null
+    }
 
     fun temCodRetorno(): Boolean {
         // vo.vo = valueObject dentro do PedidoOLVO (WrapperVO)
@@ -97,6 +102,10 @@ class PedidoOL(val vo: PedidoOLVO) {
     fun salvarNuNotaCentral(nuNota: Int) {
         setNuNotaCentral(nuNota)
         save()
+    }
+
+    fun getNuNotaModeloParaCriarPedidoNaCentral(): BigDecimal? {
+        return (this.vo.vo as DynamicVO).asBigDecimal("BHIntegracaoProjeto.AD_NUNOTAMODCENTRAL")
     }
 
     /**
