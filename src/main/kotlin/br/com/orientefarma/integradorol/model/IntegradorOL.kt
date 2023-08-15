@@ -84,11 +84,25 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
         criarItensCentral(pedidoOL, pedidoCentralVO)
 
+        if(pedidoFicouSemItem(pedidoCentralVO.nuNota) && pedidoOL.codPrj == 27){
+            deletarPedido(pedidoCentralVO.nuNota)
+        }
+
         sumarizar(pedidoCentralVO)
 
         pedidoOL.salvarNuNotaCentral(pedidoCentralVO.nuNota)
 
         return pedidoCentralVO.nuNota
+    }
+
+    private fun deletarPedido(nuNota: Int) {
+        cabecalhoNotaDAO.deleteByPk(nuNota)
+        pedidoOL.salvarRetornoSankhya(StatusPedidoOLEnum.PENDENTE,
+            RetornoPedidoEnum.SUCESSO, "Nenhum item foi inclu\u00eddo. O Nro. \u00fanico foi deletado.")
+    }
+
+    private fun pedidoFicouSemItem(nuNota: Int): Boolean{
+        return null == itemNotaDAO.findOne(" NUNOTA = ? ", nuNota)
     }
 
     private fun atualizarPedidoOLDadosCentral(cabVO: CabecalhoNotaVO) {
