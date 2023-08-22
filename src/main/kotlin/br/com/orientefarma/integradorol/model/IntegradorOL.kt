@@ -20,7 +20,6 @@ import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
-import br.com.orientefarma.integradorol.exceptions.ItemNaoInseridoException
 import br.com.orientefarma.integradorol.uitls.CentralNotaUtilsWrapper
 import br.com.sankhya.jape.core.JapeSession
 import br.com.sankhya.jape.util.JapeSessionContext
