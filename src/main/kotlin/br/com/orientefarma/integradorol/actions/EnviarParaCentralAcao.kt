@@ -41,7 +41,7 @@ class EnviarParaCentralAcao : AcaoRotinaJava {
         IntegradorOLController().enviarParaCentral(pedidoOlDto)
 
         if(pedidoOlDto.size > 1 || pedidoOlDto.isEmpty() || pedidoOlDto.first().nuNotaEnviado == null){
-            contextoAcao.setMensagemRetorno("Processamento conclu�do.")
+            contextoAcao.setMensagemRetorno("Processamento conclu\u00eddo.")
             return
         }else{
             contextoAcao.setMensagemRetorno("Pedido ${pedidoOlDto.first().nuNotaEnviado} criado.")
