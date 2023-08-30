@@ -1,12 +1,12 @@
 package br.com.orientefarma.integradorol.commons
 
 @Suppress("unused")
-enum class RetornoPedidoEnum(val codigo: Int) {
+enum class RetornoPedidoEnum(val codigo: Int, val podeMarcarComoErro: Boolean = true) {
     SUCESSO(200),
 
-    CNPJ_INVALIDO(401),
-    CLIENTE_NAO_CADASTRADO(402),
-    CLIENTE_INATIVO(405),
+    CNPJ_INVALIDO(401, false),
+    CLIENTE_NAO_CADASTRADO(402, false),
+    CLIENTE_INATIVO(405, false),
     FALHA_DOCUMENTACAO(403),
     CONDICAO(404),
     NENHUM_ITEM_PENDENTE(406),
