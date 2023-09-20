@@ -56,14 +56,16 @@ class PedidoOL(val vo: PedidoOLVO) {
         if(exception is IntegradorOLException){
             vo.codRetSkw = exception.retornoOL
             vo.retSkw = exception.mensagem
+            vo.status = if (exception.retornoOL.podeMarcarComoErro)
+                StatusPedidoOLEnum.ERRO else StatusPedidoOLEnum.PENDENTE
         }else{
             val exceptionDesconhecida =
                 EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
             vo.codRetSkw = exceptionDesconhecida.retornoOL
             val mensagem = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
             vo.retSkw = mensagem
+            vo.status = StatusPedidoOLEnum.ERRO
         }
-        vo.status = StatusPedidoOLEnum.ERRO
         vo.nuNota = this.nuNotaCentral
         pedidoOLDAO.save(vo)
     }

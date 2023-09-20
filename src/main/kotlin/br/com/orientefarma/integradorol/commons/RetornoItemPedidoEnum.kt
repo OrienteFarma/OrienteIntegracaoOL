@@ -11,6 +11,7 @@ enum class RetornoItemPedidoEnum(val codigo: Int, val expressaoRegex: Regex) {
     ESTOQUE_PARCIALMENTE(404, Regex("Parcialmente atendido")),
     DOCUMENTACAO(405, Regex("(DOCUMENTO(S) FALTANTE(S))|(Falta de documentação)")),
     NAO_ATENDIDO(406, Regex("Não atendido")),
+    DESCONTO_INVALIDO(407, Regex("DESCONTO INVALIDO")),
 
     SUCESSO(200, Regex("SUCESSO")),
 
