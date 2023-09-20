@@ -537,7 +537,8 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
                 if (percDescArquivo > percDescCondicao) {
                     itemInseridoVO.vo.setProperty("AD_OLMARCARPENDENTE_NAO", "S")
                     itemInseridoVO.observacao = "DESCONTO INVALIDO"
-                    // log desconto maior que o permitido
+                    itemPedidoOL.setFeedback(
+                        RetornoItemPedidoEnum.DESCONTO_INVALIDO, 0,"Desconto Inv\u00e1lido")
                 } else {
                     itemInseridoVO.vo["AD_PERCDESC"] = percDescArquivo
                     val valorBruto = zeroSeNulo(itemInseridoVO.qtdneg?.toInt()).toBigDecimal() * precoBase
