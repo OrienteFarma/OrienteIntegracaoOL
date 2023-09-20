@@ -1,5 +1,5 @@
 group = "br.com.orientefarma.orienteIntegracaoOL"
-version = "3.2.5"
+version = "4.0.0"
 description = "Integrador Pedidos OL"
 val userHome = System.getProperty("user.home")
 val lughVersion = "6.6.56"
