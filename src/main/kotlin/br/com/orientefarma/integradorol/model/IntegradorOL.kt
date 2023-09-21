@@ -83,7 +83,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
         criarItensCentral(pedidoOL, pedidoCentralVO)
 
-        if(pedidoFicouSemItem(pedidoCentralVO.nuNota) && pedidoOL.codPrj == 27){
+        if(pedidoFicouSemItem(pedidoCentralVO.nuNota)){
             deletarPedido(pedidoCentralVO.nuNota)
         }
 
@@ -373,6 +373,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
                 val codRetorno =
                     calcularRetornoAtendimentoItem(qtdEstoque, requireNotNull(itemPedidoOL.vo.qtdPed), qtdAtendida)
+
                 itemPedidoOL.setFeedback(codRetorno, qtdAtendida)
 
                 itensParaPersistir.add(camposItem)

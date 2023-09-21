@@ -1,5 +1,7 @@
 package br.com.orientefarma.integradorol.commons
 
+import java.lang.IllegalStateException
+
 /**
  * A Ordem dos ENUMS eh respeitado no momento de fazer as verificacoes de mensagens
  */
@@ -15,5 +17,19 @@ enum class RetornoItemPedidoEnum(val codigo: Int, val expressaoRegex: Regex) {
 
     SUCESSO(200, Regex("SUCESSO")),
 
-    FALHA_DESCONHECIDA(599, Regex(".*")),
+    FALHA_DESCONHECIDA(599, Regex(".*"));
+
+
+    companion object {
+        fun fromValor(codRetorno: Int): RetornoItemPedidoEnum {
+            for (retorno in values()) {
+                if (retorno.codigo == codRetorno) {
+                    return retorno
+                }
+            }
+            throw IllegalStateException("Nenhum codigo de retorno localizado para $codRetorno.")
+        }
+    }
+
+
 }

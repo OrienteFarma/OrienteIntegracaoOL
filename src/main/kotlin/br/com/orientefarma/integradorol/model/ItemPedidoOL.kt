@@ -59,11 +59,17 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
      * retorno da mensagem de erro/aviso.
      */
     private fun calcularCodigoRetorno(): RetornoItemPedidoEnum {
-        for (retornoItem in RetornoItemPedidoEnum.values()) {
-            val mensagemRetorno = this.vo.retSkw
-            if (mensagemRetorno != null && mensagemRetorno.contains(retornoItem.expressaoRegex)) {
-                return retornoItem
+        val codRetSkw = this.vo.codRetSkw
+        if(codRetSkw != null){
+            return RetornoItemPedidoEnum.fromValor(codRetSkw)
+        }else{
+            for (retornoItem in RetornoItemPedidoEnum.values()) {
+                val mensagemRetorno = this.vo.retSkw
+                if (mensagemRetorno != null && mensagemRetorno.contains(retornoItem.expressaoRegex)) {
+                    return retornoItem
+                }
             }
+
         }
         return RetornoItemPedidoEnum.FALHA_DESCONHECIDA
     }
