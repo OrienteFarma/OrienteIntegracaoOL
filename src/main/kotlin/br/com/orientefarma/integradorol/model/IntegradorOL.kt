@@ -718,7 +718,23 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
     @Throws(java.lang.Exception::class)
     private fun refazerFinanceiroCentral(nuNota: Int) {
+        invalidarProvisao(nuNota)
         centralNotasUtilsWrapper.refazerFinanceiro(nuNota)
+    }
+
+    /**
+     * Ao inserir todos os itens de uma só vez, temos um problema: o Sankhya, quando o primeiro item é "Não Pendente"
+     * baixa a provisão pedido. No entanto, neste momento, ainda não calculamos o financeiro. Sendo assim, o pedido
+     * fica com um título financeiro padrão marcado como baixado.
+     * Ao tentar recalcular o financeiro, o seguinte erro acontece:
+     * "Erro ao remover entidade: Este lançamento já foi baixado."
+     * Notamos que se usarmos a marcação na TGFTOP.ALTITEMPARCFAT o erro não acontece.
+     * Porém, a Oriente mantem essa marcação inativa.
+     * Para resolver estamos marcando o NUFIN da provisão como negativo, assim a provisão é invalidada.
+     * Após isso e ao calcular o financeiro, o Sankhya será capaz de excluir a provisão defeituosa e inserir a correta.
+     */
+    private fun invalidarProvisao(nuNota: Int) {
+        update(" UPDATE TGFFIN SET NUFIN = NUFIN * -1 WHERE NUNOTA = :NUNOTA ", mapOf("NUNOTA" to nuNota))
     }
 
     private fun temItemPendente(nuNota: Int) = itemNotaDAO.find {
