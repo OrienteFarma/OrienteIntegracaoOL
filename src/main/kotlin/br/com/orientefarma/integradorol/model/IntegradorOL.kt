@@ -345,8 +345,10 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
     private fun criarItensCentral(pedidoOL: PedidoOL, pedidoCentralVO: CabecalhoNotaVO){
         val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
         val itensParaPersistirMap = prepararItens(itensPedidoOL, pedidoCentralVO)
-        val itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
-        tratarDesconto(itensCentralVO)
+        if(itensParaPersistirMap.isNotEmpty()){
+            val itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
+            tratarDesconto(itensCentralVO)
+        }
     }
 
     /**
