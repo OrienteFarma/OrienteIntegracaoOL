@@ -62,7 +62,7 @@ class IntegradorOLController {
         try{
             val pedidoOLDtoPendentes = PedidoOL.fromPendentes()
             for (pedidoOLDto in pedidoOLDtoPendentes) {
-                poolThreads.addTask("Enviando para central, pedido OL ${pedidoOLDto.codProjeto}/${pedidoOLDto.nuPedOL}."){
+                poolThreads.addTask("${pedidoOLDto.codProjeto}/${pedidoOLDto.nuPedOL}"){
                     openSession {
                         enviarParaCentral(it, pedidoOLDto, true)
                     }

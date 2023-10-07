@@ -5,6 +5,7 @@ import br.com.lugh.bh.CentralNotasUtils
 import br.com.lugh.bh.tryOrNull
 import br.com.lugh.dao.EntityFacadeW
 import br.com.lugh.dao.update
+import br.com.lughconsultoria.dao.FinanceiroDAO
 import br.com.lughconsultoria.dao.ItemNotaDAO
 import br.com.lughconsultoria.dao.ParceiroDAO
 import br.com.lughconsultoria.dao.ProdutoDAO
@@ -29,6 +30,7 @@ import br.com.sankhya.modelcore.comercial.BarramentoRegra
 import br.com.sankhya.modelcore.comercial.CentralFaturamento
 import br.com.sankhya.modelcore.comercial.ConfirmacaoNotaHelper
 import br.com.sankhya.modelcore.comercial.impostos.ImpostosHelpper
+import br.com.sankhya.modelcore.util.FinanceiroHelper
 import br.com.sankhya.modelcore.util.MGECoreParameter
 import java.math.BigDecimal
 
@@ -37,6 +39,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
     private val cabecalhoNotaDAO = CabecalhoNotaDAO()
     private val itemNotaDAO = ItemNotaDAO()
+    private val financeiroDAO = FinanceiroDAO()
     private val parceiroDAO = ParceiroDAO()
     private val produtoDAO = ProdutoDAO()
     private  val projetoIntegracaoDAO = ProjetoIntegracaoDAO()
@@ -725,18 +728,19 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
     }
 
     /**
-     * Ao inserir todos os itens de uma só vez, temos um problema: o Sankhya, quando o primeiro item é "Não Pendente"
+     * Ao inserir todos os itens de uma só vez, temos um problema:
+     * o Sankhya, quando o item não tem estoque, o marca como "Não Pendente" e
      * baixa a provisão pedido. No entanto, neste momento, ainda não calculamos o financeiro. Sendo assim, o pedido
      * fica com um título financeiro padrão marcado como baixado.
      * Ao tentar recalcular o financeiro, o seguinte erro acontece:
      * "Erro ao remover entidade: Este lançamento já foi baixado."
      * Notamos que se usarmos a marcação na TGFTOP.ALTITEMPARCFAT o erro não acontece.
      * Porém, a Oriente mantem essa marcação inativa.
-     * Para resolver estamos marcando o NUFIN da provisão como negativo, assim a provisão é invalidada.
+     * Para resolver estamos excluindo o NUFIN da provisão.
      * Após isso e ao calcular o financeiro, o Sankhya será capaz de excluir a provisão defeituosa e inserir a correta.
      */
     private fun invalidarProvisao(nuNota: Int) {
-        update(" UPDATE TGFFIN SET NUFIN = NUFIN * -1 WHERE NUNOTA = :NUNOTA ", mapOf("NUNOTA" to nuNota))
+        update("DELETE FROM TGFFIN WHERE DHBAIXA IS NOT NULL AND NUNOTA = :NUNOTA", mapOf("NUNOTA" to nuNota))
     }
 
     private fun temItemPendente(nuNota: Int) = itemNotaDAO.find {

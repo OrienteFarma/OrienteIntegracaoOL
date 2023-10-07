@@ -18,11 +18,20 @@ class ParallelExecutor private constructor(threadPoolSize: Int) {
         private var instance: ParallelExecutor? = null
 
         @Synchronized
-        fun getInstance(threadPoolSize: Int): ParallelExecutor {
+        fun getInstance(threadPoolSize: Int = 1): ParallelExecutor {
             if (instance == null) {
                 instance = ParallelExecutor(threadPoolSize)
             }
             return instance!!
+        }
+
+        fun liberarReprocessamentoJob(codProjeto: Int, nuPedOL: String){
+            val processedTasks = getInstance().processedTasks
+            processedTasks.remove("$codProjeto/$nuPedOL")
+        }
+        @Suppress("unused")
+        fun limparFilaProcessados(){
+            getInstance().processedTasks.clear()
         }
     }
 

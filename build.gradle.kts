@@ -1,4 +1,4 @@
-group = "br.com.orientefarma.orienteIntegracaoOL"
+group = "br.com.orientefarma.integradorol"
 version = "4.0.0"
 description = "Integrador Pedidos OL"
 val userHome = System.getProperty("user.home")
@@ -38,6 +38,14 @@ repositories {
             create<HttpHeaderAuthentication>("header")
         }
     }
+    maven {
+        url = uri("http://sankhya.orientefarma.com.br:8081/repository/maven-public/")
+        name = "Repo Nexus Oriente"
+        metadataSources {
+            artifact()
+            mavenPom()
+        }
+    }
 
 }
 
@@ -56,7 +64,6 @@ dependencies {
     implementation("br.com.sankhya", "cuckoo", skwVersion)
     implementation("javax.servlet", "servlet-api", "2.5")
     implementation("br.com.lughconsultoria", "lugh-lib", lughVersion )
-
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
     testImplementation("org.mockito:mockito-core:3.+")
     testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
