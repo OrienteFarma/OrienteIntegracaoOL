@@ -19,6 +19,7 @@ import br.com.orientefarma.integradorol.dao.toCabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.CabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
+import br.com.orientefarma.integradorol.exceptions.DeadLockException
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.uitls.CentralNotaUtilsWrapper
@@ -30,7 +31,6 @@ import br.com.sankhya.modelcore.comercial.BarramentoRegra
 import br.com.sankhya.modelcore.comercial.CentralFaturamento
 import br.com.sankhya.modelcore.comercial.ConfirmacaoNotaHelper
 import br.com.sankhya.modelcore.comercial.impostos.ImpostosHelpper
-import br.com.sankhya.modelcore.util.FinanceiroHelper
 import br.com.sankhya.modelcore.util.MGECoreParameter
 import java.math.BigDecimal
 
@@ -39,7 +39,6 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
 
     private val cabecalhoNotaDAO = CabecalhoNotaDAO()
     private val itemNotaDAO = ItemNotaDAO()
-    private val financeiroDAO = FinanceiroDAO()
     private val parceiroDAO = ParceiroDAO()
     private val produtoDAO = ProdutoDAO()
     private  val projetoIntegracaoDAO = ProjetoIntegracaoDAO()
@@ -349,7 +348,18 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
         val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
         val itensParaPersistirMap = prepararItens(itensPedidoOL, pedidoCentralVO)
         if(itensParaPersistirMap.isNotEmpty()){
-            val itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
+
+            lateinit var itensCentralVO: List<ItemNotaVO>
+            val tentativasBurlarDeadlock = 3
+            for(i in 1..tentativasBurlarDeadlock){
+                try {
+                    itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
+                    break
+                }catch (e: DeadLockException){
+                    if (i == tentativasBurlarDeadlock) throw e
+                }
+            }
+
             tratarDesconto(itensCentralVO)
         }
     }
