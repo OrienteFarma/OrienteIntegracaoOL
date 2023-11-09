@@ -30,11 +30,13 @@ class IntegradorOLController {
                 val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
                 pedidoOL.marcarComoEnviandoParaCentral()
             }
-            hnd.execWithTX {
-                val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
-                val integradorOL = IntegradorOL(pedidoOL)
-                nuNotaEnviado = integradorOL.enviarParaCentral()
-            }
+            hnd.execWithTX (
+                JapeSession.TXBlockRedoable {
+                    val pedidoOL = PedidoOL.fromPk(pedidoOLDto.nuPedOL, pedidoOLDto.codProjeto)
+                    val integradorOL = IntegradorOL(pedidoOL)
+                    nuNotaEnviado = integradorOL.enviarParaCentral()
+                }
+            )
         }catch (e: EnviarPedidoCentralException) {
             salvarErroTratado(e, pedidoOLDto, hnd)
         }catch (e: Exception){
@@ -58,8 +60,9 @@ class IntegradorOLController {
     }
 
     fun enviarPendentesParaCentral(){
-        val poolThreads = ParallelExecutor.getInstance(2)
+        val poolThreads = ParallelExecutor.getInstance()
         try{
+
             val pedidoOLDtoPendentes = PedidoOL.fromPendentes()
             for (pedidoOLDto in pedidoOLDtoPendentes) {
                 poolThreads.addTask("${pedidoOLDto.codProjeto}/${pedidoOLDto.nuPedOL}"){

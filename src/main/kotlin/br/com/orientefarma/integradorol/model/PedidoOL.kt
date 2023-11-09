@@ -121,7 +121,7 @@ class PedidoOL(val vo: PedidoOLVO) {
         }
 
         fun fromPendentes(): Collection<PedidoOLDto>{
-            val pedidoOLVOIntegrados = PedidoOLDAO().findIntegrados(1)
+            val pedidoOLVOIntegrados = PedidoOLDAO().findIntegrados()
             return pedidoOLVOIntegrados.map { PedidoOLDto(it.nuPedOL, it.codPrj) }
         }
     }

@@ -19,6 +19,7 @@ class PedidoOLDAO : GenericDAO<PedidoOLVO>("AD_INTCABOL", PedidoOLVO::class.java
         return find {
             it.where = " STATUS = 'I' AND nullValue(BHIntegracaoProjeto->AD_NOVA_ABORDAGEM, 'N') = 'S' "
             it.maxResults = maxResults
+            it.orderBy = "DHINCLUSAO ASC"
         }
 
     }

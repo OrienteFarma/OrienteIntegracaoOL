@@ -12,11 +12,6 @@ class LiberarReprocessamentoJobAcao : AcaoRotinaJava{
             return
         }
 
-        if(contextoAcao.linhas.size > 1){
-            contextoAcao.setMensagemRetorno("Selecione um pedido por vez.")
-            return
-        }
-
         for (linha in contextoAcao.linhas) {
             val codProjeto = linha["CODPRJ"].toString().toInt()
             val nuPedOL = linha["NUPEDOL"].toString()

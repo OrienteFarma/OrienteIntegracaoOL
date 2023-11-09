@@ -1,5 +1,6 @@
 package br.com.orientefarma.integradorol.commons
 
+import br.com.sankhya.modelcore.util.MGECoreParameter
 import java.util.concurrent.BlockingDeque
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
@@ -16,9 +17,10 @@ class ParallelExecutor private constructor(threadPoolSize: Int) {
 
     companion object {
         private var instance: ParallelExecutor? = null
+        private val qtdThreadsPadrao = MGECoreParameter.getParameterAsInt("OR_QTDTHREADPDR")
 
         @Synchronized
-        fun getInstance(threadPoolSize: Int = 1): ParallelExecutor {
+        fun getInstance(threadPoolSize: Int = qtdThreadsPadrao): ParallelExecutor {
             if (instance == null) {
                 instance = ParallelExecutor(threadPoolSize)
             }

@@ -5,7 +5,6 @@ import br.com.lugh.bh.CentralNotasUtils
 import br.com.lugh.bh.tryOrNull
 import br.com.lugh.dao.EntityFacadeW
 import br.com.lugh.dao.update
-import br.com.lughconsultoria.dao.FinanceiroDAO
 import br.com.lughconsultoria.dao.ItemNotaDAO
 import br.com.lughconsultoria.dao.ParceiroDAO
 import br.com.lughconsultoria.dao.ProdutoDAO
@@ -19,7 +18,6 @@ import br.com.orientefarma.integradorol.dao.toCabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.CabecalhoNotaVO
 import br.com.orientefarma.integradorol.dao.vo.ItemPedidoOLVO
 import br.com.orientefarma.integradorol.dao.vo.PedidoOLVO
-import br.com.orientefarma.integradorol.exceptions.DeadLockException
 import br.com.orientefarma.integradorol.exceptions.EnviarItemPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.uitls.CentralNotaUtilsWrapper
@@ -348,18 +346,7 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
         val itensPedidoOL = ItemPedidoOL.fromPedidoOL(pedidoOL)
         val itensParaPersistirMap = prepararItens(itensPedidoOL, pedidoCentralVO)
         if(itensParaPersistirMap.isNotEmpty()){
-
-            lateinit var itensCentralVO: List<ItemNotaVO>
-            val tentativasBurlarDeadlock = 3
-            for(i in 1..tentativasBurlarDeadlock){
-                try {
-                    itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
-                    break
-                }catch (e: DeadLockException){
-                    if (i == tentativasBurlarDeadlock) throw e
-                }
-            }
-
+            val itensCentralVO = inserirItemSemPreco(pedidoCentralVO, itensParaPersistirMap)
             tratarDesconto(itensCentralVO)
         }
     }
