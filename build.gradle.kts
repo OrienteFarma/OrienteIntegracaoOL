@@ -38,8 +38,9 @@ repositories {
             create<HttpHeaderAuthentication>("header")
         }
     }
+
     maven {
-        url = uri("http://sankhya.orientefarma.com.br:8081/repository/maven-public/")
+        url = uri("http://192.168.3.79:8081/repository/maven-public/")
         name = "Repo Nexus Oriente"
         metadataSources {
             artifact()
