@@ -357,11 +357,10 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
     private fun prepararItens(itensPedidoOL: Collection<ItemPedidoOL>,
                               cabCentralVO: CabecalhoNotaVO): List<Map<String, Any?>> {
 
-        val propertyFinanceiroJaCriado = "financeiros.ja.foram.criados"
         val itensParaPersistir = mutableListOf<Map<String, Any?>>()
         for (itemPedidoOL in itensPedidoOL) {
             try {
-                JapeSession.putProperty(propertyFinanceiroJaCriado, true)
+
                 val itemPedidoOLVO = itemPedidoOL.vo
 
                 val camposItem = preencherCamposGerais(cabCentralVO, itemPedidoOLVO)
@@ -385,7 +384,6 @@ class IntegradorOL(private val pedidoOL: PedidoOL) {
                 itemPedidoOL.setFeedback(e.mensagem ?: "", 0)
             }finally {
                 itemPedidoOL.salvarRetornoItemPedidoOL()
-                JapeSession.putProperty(propertyFinanceiroJaCriado, false)
             }
         }
         return itensParaPersistir
