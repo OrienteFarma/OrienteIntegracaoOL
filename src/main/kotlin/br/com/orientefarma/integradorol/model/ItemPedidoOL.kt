@@ -12,11 +12,15 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     /**
      * Capaz de setar os dados para retorno do item de pedido OL.
      * Por exemplo: Se o item tem DESCONTO INVALIDO ou ESTOQUE INSUFICIENTE.
-     * USADO quando somente há a mensagem de erro.
+     * USADO quando somente hï¿½ a mensagem de erro.
      */
     fun setFeedback(mensagem: String, qtdAtendida: Int){
         this.vo.retSkw = mensagem.retirarTagsHtml().take(100)
         this.vo.qtdAtd = qtdAtendida
+    }
+
+    fun setFeedbackMensagem(mensagem: String){
+        this.vo.retSkw = mensagem.retirarTagsHtml().take(100)
     }
 
     /**
@@ -37,8 +41,8 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     }
 
     /**
-     * Deve ser chamado APÓS setar dasdos de feedback.
-     * Este método é responsável por persistir o feedback no banco de dados.
+     * Deve ser chamado APï¿½S setar dasdos de feedback.
+     * Este mï¿½todo ï¿½ responsï¿½vel por persistir o feedback no banco de dados.
      */
     fun salvarRetornoItemPedidoOL() {
         val retornoItem = calcularCodigoRetorno()
@@ -47,7 +51,7 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     }
 
     /**
-     * Marca o ItemPedidoOL como NÃO pendente, sometne na tabela intermediária.
+     * Marca o ItemPedidoOL como Nï¿½O pendente, sometne na tabela intermediï¿½ria.
      */
     fun marcarComoNaoPendente(){
         this.vo.pendente = false
@@ -55,7 +59,7 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     }
 
     /**
-     * Com base na mensagem de feedback, este método é capaz de calcular - utilizando REGEX - qual o código de
+     * Com base na mensagem de feedback, este mï¿½todo ï¿½ capaz de calcular - utilizando REGEX - qual o cï¿½digo de
      * retorno da mensagem de erro/aviso.
      */
     private fun calcularCodigoRetorno(): RetornoItemPedidoEnum {
@@ -78,7 +82,7 @@ class ItemPedidoOL(val vo: ItemPedidoOLVO) {
     }
 
     /**
-     * Métodos Fabrica.
+     * Mï¿½todos Fabrica.
      */
     companion object {
         fun fromCodProd(numPedidoOL: String, codProjeto: Int, codProd: Int): ItemPedidoOL? {

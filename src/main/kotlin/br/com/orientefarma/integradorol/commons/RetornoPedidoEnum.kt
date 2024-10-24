@@ -10,6 +10,7 @@ enum class RetornoPedidoEnum(val codigo: Int, val podeMarcarComoErro: Boolean = 
     FALHA_DOCUMENTACAO(403),
     CONDICAO(404),
     NENHUM_ITEM_PENDENTE(406),
+    BLOQUEIO_FINANCEIRO(407),
 
     PEDIDO_DUPLICADO(501),
     ERRO_AO_TOTALIZAR_PEDIDO(502),

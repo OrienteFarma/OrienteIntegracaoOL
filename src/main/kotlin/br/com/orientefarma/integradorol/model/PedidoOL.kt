@@ -10,6 +10,7 @@ import br.com.orientefarma.integradorol.exceptions.EnviarPedidoCentralException
 import br.com.orientefarma.integradorol.exceptions.IntegradorOLException
 import br.com.sankhya.jape.vo.DynamicVO
 import java.math.BigDecimal
+import java.util.*
 
 class PedidoOL(val vo: PedidoOLVO) {
     private val pedidoOLDAO = PedidoOLDAO()
@@ -31,7 +32,7 @@ class PedidoOL(val vo: PedidoOLVO) {
     }
 
     /**
-     * Seta o número de pedido na central na tabela intermediária.
+     * Seta o nï¿½mero de pedido na central na tabela intermediï¿½ria.
      */
     fun setNuNotaCentral(nuNota: Int){
         this.nuNotaCentral = nuNota
@@ -50,7 +51,20 @@ class PedidoOL(val vo: PedidoOLVO) {
     }
 
     /**
-     * Usado para salvar retorno de exceções não tratadas.
+     * Formatar mensagem
+     */
+    fun capturarMensagem(mensagem: String?): String? {
+
+        return if(mensagem?.contains("O cliente selecionado estÃ¡ bloqueado, por favor contate o financeiro") == true){
+            "O cliente selecionado estÃ¡ bloqueado, por favor contate o financeiro"
+        }else
+            mensagem
+    }
+
+
+
+    /**
+     * Usado para salvar retorno de exceï¿½ï¿½es nï¿½o tratadas.
      */
     fun salvarErroSankhya(exception: Exception){
         if(exception is IntegradorOLException){
@@ -58,17 +72,25 @@ class PedidoOL(val vo: PedidoOLVO) {
             vo.retSkw = exception.mensagem
             vo.status = if (exception.retornoOL.podeMarcarComoErro)
                 StatusPedidoOLEnum.ERRO else StatusPedidoOLEnum.PENDENTE
-        }else{
-            val exceptionDesconhecida =
-                EnviarPedidoCentralException(exception.message ?: "Sem mensagem", RetornoPedidoEnum.ERRO_DESCONHECIDO)
-            vo.codRetSkw = exceptionDesconhecida.retornoOL
-            val mensagem = exceptionDesconhecida.mensagem.retirarTagsHtml().take(100)
-            vo.retSkw = mensagem
+        } else {
+
+            val retornoPedidoEnum = when {
+                exception.message?.contains("Venda a prazo bloqueada") == true -> RetornoPedidoEnum.BLOQUEIO_FINANCEIRO
+                exception.message?.contains("O cliente selecionado estÃ¡ bloqueado, por favor contate o financeiro") == true -> RetornoPedidoEnum.BLOQUEIO_FINANCEIRO
+                else -> RetornoPedidoEnum.ERRO_DESCONHECIDO
+            }
+
+            vo.codRetSkw = retornoPedidoEnum
+            //val mensagem = exception.message?.retirarTagsHtml()?.take(100) ?: "Erro desconhecido"
+            val mensagemTratada = capturarMensagem(exception.message)
+            vo.retSkw = mensagemTratada?.take(100)
             vo.status = StatusPedidoOLEnum.ERRO
         }
         vo.nuNota = this.nuNotaCentral
         pedidoOLDAO.save(vo)
     }
+
+
 
     /**
      * Usado para salvar retorno de sucesso no envio para a central de vendas.
@@ -111,7 +133,7 @@ class PedidoOL(val vo: PedidoOLVO) {
     }
 
     /**
-     * Métodos Fábrica.
+     * Mï¿½todos Fï¿½brica.
      */
     companion object {
         private val pedidoOLDAO = PedidoOLDAO()

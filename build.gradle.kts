@@ -1,5 +1,5 @@
 group = "br.com.orientefarma.integradorol"
-version = "4.0.0"
+version = "5.1.0"
 description = "Integrador Pedidos OL"
 val userHome = System.getProperty("user.home")
 val lughVersion = "6.6.56"
@@ -53,7 +53,7 @@ repositories {
 dependencies {
 
     //depedencias basicas
-    implementation("br.com.sankhya", "mge-modelcore", skwVersion)
+    implementation("br.com.sankhya", "mge-modelcore", "4.24b82")
     implementation("br.com.sankhya", "mgeserv-model", skwVersion)
     implementation("javax.ejb","ejb-api","3.0")
     implementation("br.com.sankhya", "reflectdao", skwVersion)
